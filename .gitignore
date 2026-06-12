@@ -1,0 +1,28 @@
+# Node
+node_modules/
+.npm/
+.next/
+dist/
+build/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+
+# Neo4j
+neo4j_data/
+neo4j_logs/
+
+# OS
+.DS_Store
+
+# Misc
+*.sqlite
+*.sqlite3
+.pytest_cache/
