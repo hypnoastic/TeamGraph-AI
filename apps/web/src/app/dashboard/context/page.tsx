@@ -18,67 +18,85 @@ export default function ContextInboxPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const getLaneIcon = (lane: string) => {
+  const getLaneBadge = (lane: string) => {
     switch (lane) {
       case 'auto_curated':
-        return <CheckCircle className="text-[var(--color-accent-safe)]" size={16} />;
+        return (
+          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-safe)] bg-[var(--color-accent-safe)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-safe)]/20">
+            <CheckCircle size={10} /> Auto Curated
+          </span>
+        );
       case 'pending_review':
-        return <Clock className="text-[var(--color-accent-review)]" size={16} />;
+        return (
+          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-review)] bg-[var(--color-accent-review)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-review)]/20">
+            <Clock size={10} /> Pending Review
+          </span>
+        );
       case 'quarantined':
-        return <AlertTriangle className="text-[var(--color-accent-unsafe)]" size={16} />;
+        return (
+          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-unsafe)] bg-[var(--color-accent-unsafe)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-unsafe)]/20">
+            <AlertTriangle size={10} /> Quarantined
+          </span>
+        );
       default:
-        return null;
+        return (
+          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-card-base)] px-2.5 py-1 rounded-full border border-[var(--color-border-subtle)]">
+            {lane}
+          </span>
+        );
     }
   };
 
   return (
     <PageShell
-      eyebrow="Ingestion pipeline"
-      title="Context Inbox"
-      description="Review raw uploads, lane decisions, and Graphiti episode linkage before or after they enter the live brain."
       actions={
-        <button className="btn-secondary flex items-center !rounded-2xl">
-          <Filter size={16} className="mr-2" /> Flow
+        <button className="px-3 py-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-card-base)]/50 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] flex items-center transition-colors">
+          <Filter size={14} className="mr-1.5" /> Filter
         </button>
       }
     >
-
-      <div className="flex-1 overflow-y-auto space-y-4">
+      <div className="divide-y divide-[var(--color-border-subtle)]/60">
         {loading ? (
-          <div className="text-[var(--color-text-muted)]">Loading...</div>
+          <div className="text-[var(--color-text-muted)] text-sm py-4">Loading inbox items...</div>
+        ) : inbox.length === 0 ? (
+          <div className="text-[var(--color-text-muted)] text-sm py-12 text-center border border-dashed border-[var(--color-border-subtle)] rounded-xl">
+            No ingestion events recorded yet.
+          </div>
         ) : (
           inbox.map((item, index) => (
-            <div key={index} className="card p-6 flex flex-col gap-6">
-              <div className="flex flex-col md:flex-row md:items-start gap-6">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <span className="text-lg font-medium">{item.raw.title}</span>
-                    <span className="px-2 py-1 bg-[var(--color-background-surface)] rounded text-xs text-[var(--color-text-muted)] border border-[var(--color-border-subtle)]">
-                      {item.raw.sourceType}
+            <div key={index} className="py-6 first:pt-0 last:pb-0 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-base font-semibold text-[var(--color-text-primary)]">
+                    {item.raw.title}
+                  </span>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] rounded text-[var(--color-text-secondary)]">
+                    {item.raw.sourceType}
+                  </span>
+                  {item.context?.brainMode && (
+                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 border border-[var(--color-accent-brain)]/20 text-[var(--color-accent-brain)] bg-[var(--color-accent-brain)]/5 rounded">
+                      {item.context.brainMode}
                     </span>
-                    {item.context?.brainMode && (
-                      <span className="px-2 py-1 bg-[var(--color-card-base)] rounded text-xs text-[var(--color-accent-brain)] border border-[var(--color-accent-brain)]/20">
-                        {item.context.brainMode}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[var(--color-text-secondary)] text-sm line-clamp-3 mb-4">{item.raw.content}</p>
-                  <div className="text-xs text-[var(--color-text-muted)] space-y-1">
-                    <div>Uploaded {new Date(item.raw.createdAt).toLocaleString()}</div>
-                    {item.context?.graphitiEpisodeUuid && <div>Episode {item.context.graphitiEpisodeUuid}</div>}
-                  </div>
-                </div>
-
-                <div className="md:w-56 bg-[var(--color-background-surface)] rounded-lg border border-[var(--color-border-subtle)] p-4">
-                  <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider mb-2 block">Lane Decision</span>
-                  <div className="flex items-center space-x-2 mb-3">
-                    {getLaneIcon(item.lane)}
-                    <span className="text-sm font-medium capitalize">{item.lane.replace('_', ' ')}</span>
-                  </div>
-                  {item.review_item?.reason && (
-                    <div className="text-xs text-[var(--color-text-secondary)]">{item.review_item.reason}</div>
                   )}
                 </div>
+                <div>{getLaneBadge(item.lane)}</div>
+              </div>
+
+              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-4xl">
+                {item.raw.content}
+              </p>
+
+              {item.review_item?.reason && (
+                <div className="text-xs text-[var(--color-text-muted)] pl-3 border-l-2 border-[var(--color-border-subtle)]">
+                  Curation notes: {item.review_item.reason}
+                </div>
+              )}
+
+              <div className="flex gap-4 text-[10px] text-[var(--color-text-muted)] font-mono pt-1">
+                <span>Uploaded: {new Date(item.raw.createdAt).toLocaleString()}</span>
+                {item.context?.graphitiEpisodeUuid && (
+                  <span>Episode: {item.context.graphitiEpisodeUuid.slice(0, 8)}...</span>
+                )}
               </div>
             </div>
           ))

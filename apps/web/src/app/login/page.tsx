@@ -18,15 +18,7 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const title = useMemo(
-    () => (mode === 'login' ? 'Sign in to TeamGraph' : 'Create your TeamGraph account'),
-    [mode]
-  );
-
-  const description = useMemo(
-    () =>
-      mode === 'login'
-        ? 'Authenticate with Postgres-backed TeamGraph access and continue into the live brain.'
-        : 'Create a production-ready account while keeping the demo shortcuts available for your hackathon walkthrough.',
+    () => (mode === 'login' ? 'Sign in to TeamGraph' : 'Create your account'),
     [mode]
   );
 
@@ -64,138 +56,117 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(0,245,212,0.10),_transparent_35%),linear-gradient(180deg,_#050506_0%,_#090B0D_40%,_#050506_100%)] px-4 py-10">
-      <div className="max-w-6xl mx-auto">
-        <nav className="flex items-center justify-between mb-10">
-          <Link href="/" className="text-xl font-semibold tracking-tight text-[var(--color-text-primary)]">
+    <div className="min-h-screen bg-[#050506] flex flex-col items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full space-y-6">
+        <div className="text-center space-y-2">
+          <Link href="/" className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
             TeamGraph
           </Link>
-          <div className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-card-base)]/70 px-4 py-2 text-xs uppercase tracking-[0.24em] text-[var(--color-accent-brain)]">
-            Graphiti + Postgres
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
+            Live Brain operations
+          </p>
+        </div>
+
+        <div className="bg-[#0A0A0B] border border-[var(--color-border-subtle)] rounded-2xl p-8 space-y-6">
+          <div className="text-center">
+            <h2 className="text-lg font-medium text-[var(--color-text-primary)]">{title}</h2>
           </div>
-        </nav>
 
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-stretch">
-          <section className="rounded-[32px] border border-[var(--color-border-subtle)] bg-[rgba(10,11,13,0.82)] backdrop-blur-xl p-8 md:p-10 shadow-[0_30px_90px_rgba(0,0,0,0.28)]">
-            <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--color-accent-brain)]">Launch your live brain</div>
-            <h1 className="mt-4 text-4xl md:text-5xl font-semibold tracking-tight text-[var(--color-text-primary)]">
-              Team memory with production auth and demo-ready workflows.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base text-[var(--color-text-secondary)] leading-7">
-              Postgres now owns auth, API keys, connector state, and activity. Graphiti and Neo4j stay focused on memory retrieval, graph structure, and the organization brain itself.
-            </p>
-
-            <div className="mt-10 grid md:grid-cols-3 gap-4">
-              {[
-                ['Demo account', 'Use demo@teamgraph.local / password for the hackathon walkthrough.'],
-                ['Seeded knowledge', 'The demo user starts with launch, connector, and deployment memory already loaded.'],
-                ['MCP ready', 'API keys and the npm MCP CLI stay inside the TeamGraph control layer.'],
-              ].map(([heading, copy]) => (
-                <div key={heading} className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-card-base)]/70 p-5">
-                  <div className="text-sm font-medium">{heading}</div>
-                  <div className="mt-2 text-sm text-[var(--color-text-secondary)] leading-6">{copy}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-[32px] border border-[var(--color-border-subtle)] bg-[rgba(12,13,16,0.92)] backdrop-blur-xl p-8 shadow-[0_30px_90px_rgba(0,0,0,0.28)]">
-            <div className="flex gap-2 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-background-surface)] p-1 mb-8">
-              {(['login', 'signup'] as AuthMode[]).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setMode(value)}
-                  className={`flex-1 rounded-full px-4 py-2 text-sm transition-colors ${
-                    mode === value
-                      ? 'bg-[var(--color-accent-brain)] text-[#071012] font-medium'
-                      : 'text-[var(--color-text-secondary)]'
-                  }`}
-                >
-                  {value === 'login' ? 'Sign in' : 'Create account'}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold">{title}</h2>
-              <p className="mt-2 text-sm text-[var(--color-text-secondary)] leading-6">{description}</p>
-            </div>
-
-            <form onSubmit={handleAuth} className="space-y-4">
-              {mode === 'signup' && (
-                <div>
-                  <label className="block text-sm font-medium mb-2 text-[var(--color-text-secondary)]">Full name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    className="input-field w-full"
-                    placeholder="Alicia Engineer"
-                    required
-                  />
-                </div>
-              )}
-
+          <form onSubmit={handleAuth} className="space-y-4">
+            {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium mb-2 text-[var(--color-text-secondary)]">Email</label>
+                <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Full name</label>
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="input-field w-full"
-                  placeholder="you@teamgraph.ai"
+                  type="text"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  className="input-field w-full text-sm"
+                  placeholder="Alicia Engineer"
                   required
                 />
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium mb-2 text-[var(--color-text-secondary)]">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="input-field w-full"
-                  placeholder="Enter your password"
-                  required
-                />
+            <div>
+              <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Email address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="input-field w-full text-sm"
+                placeholder="you@teamgraph.ai"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="input-field w-full text-sm"
+                placeholder="Enter password"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-[var(--color-accent-unsafe)]">
+                {error}
               </div>
+            )}
 
-              {error && (
-                <div className="rounded-2xl border border-[rgba(244,63,94,0.3)] bg-[rgba(127,29,29,0.25)] px-4 py-3 text-sm text-[var(--color-accent-unsafe)]">
-                  {error}
-                </div>
-              )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full py-2.5 bg-[var(--color-accent-brain)] text-black font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 text-sm"
+            >
+              {isSubmitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
+            </button>
+          </form>
 
+          <div className="text-center text-xs">
+            <button
+              type="button"
+              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+              className="text-[var(--color-accent-brain)] hover:underline"
+            >
+              {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+            </button>
+          </div>
+
+          <div className="border-t border-[var(--color-border-subtle)] pt-4 space-y-3">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] text-center font-mono">
+              Quick access demo credentials
+            </div>
+            <div className="flex justify-center gap-2">
               <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-primary w-full !rounded-2xl !py-3 bg-[var(--color-accent-brain)] text-[#051013] hover:opacity-95 disabled:opacity-60"
+                type="button"
+                onClick={() => loginAs('admin')}
+                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
               >
-                {isSubmitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
+                Admin
               </button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t border-[var(--color-border-subtle)]">
-              <div className="text-sm text-[var(--color-text-muted)] mb-4">Demo shortcuts</div>
-              <div className="grid md:grid-cols-3 gap-3">
-                <button type="button" onClick={() => loginAs('admin')} className="btn-secondary !rounded-2xl text-sm">
-                  Admin
-                </button>
-                <button type="button" onClick={() => loginAs('member')} className="btn-secondary !rounded-2xl text-sm">
-                  Member
-                </button>
-                <button type="button" onClick={() => loginAs('demo')} className="btn-secondary !rounded-2xl text-sm">
-                  Demo Brain
-                </button>
-              </div>
-              <div className="mt-4 text-xs text-[var(--color-text-muted)]">
-                All seeded demo accounts use <code>password</code>.
-              </div>
+              <button
+                type="button"
+                onClick={() => loginAs('member')}
+                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
+              >
+                Member
+              </button>
+              <button
+                type="button"
+                onClick={() => loginAs('demo')}
+                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
+              >
+                Demo
+              </button>
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+

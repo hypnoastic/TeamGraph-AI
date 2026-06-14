@@ -24,34 +24,36 @@ export default function ActivityPage() {
   }, []);
 
   return (
-    <PageShell
-      eyebrow="Audit trail"
-      title="System Activity"
-      description="Review authentication events, connector actions, curation changes, and operational activity across the TeamGraph control plane."
-    >
-      <div className="space-y-4">
-        {activities.map((activity) => {
-          const Icon = iconForType(activity.type);
-          return (
-            <div
-              key={activity.id}
-              className="card p-4 flex items-start space-x-4 hover:bg-[var(--color-background-surface)] transition-colors cursor-default"
-            >
-              <div className="mt-1 p-2 rounded-lg bg-[var(--color-background-surface)] text-[var(--color-accent-brain)]">
-                <Icon size={18} />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-medium text-[var(--color-text-primary)]">{activity.title}</h3>
-                  <span className="text-xs text-[var(--color-text-muted)]">
-                    {new Date(activity.createdAt).toLocaleString()}
-                  </span>
+    <PageShell>
+      <div className="divide-y divide-[var(--color-border-subtle)]/40">
+        {activities.length === 0 ? (
+          <div className="text-[var(--color-text-muted)] text-sm py-12 text-center border border-dashed border-[var(--color-border-subtle)] rounded-xl">
+            No system activity recorded yet.
+          </div>
+        ) : (
+          activities.map((activity) => {
+            const Icon = iconForType(activity.type);
+            return (
+              <div
+                key={activity.id}
+                className="py-4 first:pt-0 last:pb-0 flex items-start gap-4 transition-colors cursor-default"
+              >
+                <div className="mt-0.5 p-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-[var(--color-accent-brain)]">
+                  <Icon size={14} />
                 </div>
-                <p className="text-sm text-[var(--color-text-secondary)] mt-1">{activity.description}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="font-semibold text-xs text-[var(--color-text-primary)]">{activity.title}</h3>
+                    <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                      {new Date(activity.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--color-text-secondary)] mt-1 leading-relaxed">{activity.description}</p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </PageShell>
   );

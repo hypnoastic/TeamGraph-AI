@@ -17,52 +17,48 @@ export default function TeamPage() {
   }, []);
 
   return (
-    <PageShell
-      eyebrow="Access control"
-      title="Team Members"
-      description="Postgres-backed identities now control who can reach each project brain, who can approve context, and who can manage integrations."
-    >
-      <div className="border border-[var(--color-border-subtle)] rounded-xl overflow-hidden bg-[var(--color-card-base)]">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-[var(--color-background-surface)] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
-            <tr>
-              <th className="p-4 font-medium">User</th>
-              <th className="p-4 font-medium">Role</th>
-              <th className="p-4 font-medium">Projects</th>
-              <th className="p-4 font-medium text-right">Actions</th>
+    <PageShell>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
+              <th className="pb-3 font-mono uppercase tracking-wider font-medium">User</th>
+              <th className="pb-3 font-mono uppercase tracking-wider font-medium">Role</th>
+              <th className="pb-3 font-mono uppercase tracking-wider font-medium">Project Access</th>
+              <th className="pb-3 font-mono uppercase tracking-wider font-medium text-right"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[var(--color-border-subtle)]">
+          <tbody className="divide-y divide-[var(--color-border-subtle)]/40">
             {team.map((member) => (
-              <tr key={member.id} className="hover:bg-[var(--color-card-hover)] transition-colors">
-                <td className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-background-surface)] flex items-center justify-center font-bold text-xs text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]">
-                      {member.name.charAt(0)}
+              <tr key={member.id} className="hover:bg-[var(--color-card-base)]/20 transition-colors">
+                <td className="py-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-[var(--color-border-subtle)] flex items-center justify-center font-semibold text-[10px] text-[var(--color-text-secondary)]">
+                      {member.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div className="font-medium text-[var(--color-text-primary)]">{member.name}</div>
-                      <div className="text-[var(--color-text-muted)] text-xs flex items-center mt-0.5">
+                      <div className="text-[var(--color-text-muted)] text-[10px] flex items-center mt-0.5 font-mono">
                         <Mail size={10} className="mr-1" /> {member.email}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="p-4">
+                <td className="py-3.5">
                   <span
-                    className={`px-2 py-1 rounded text-[10px] uppercase tracking-wider font-medium border ${
+                    className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider font-medium border ${
                       member.role === 'admin'
-                        ? 'bg-purple-900/20 text-[var(--color-accent-mcp)] border-purple-900/50'
-                        : 'bg-blue-900/20 text-blue-400 border-blue-900/50'
+                        ? 'bg-[var(--color-accent-brain)]/10 text-[var(--color-accent-brain)] border-[var(--color-accent-brain)]/20'
+                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                     }`}
                   >
                     {member.role}
                   </span>
                 </td>
-                <td className="p-4 text-[var(--color-text-secondary)]">{member.projects.join(', ') || 'No project access'}</td>
-                <td className="p-4 text-right">
+                <td className="py-3.5 text-[var(--color-text-secondary)] font-mono">{member.projects.join(', ') || 'No project access'}</td>
+                <td className="py-3.5 text-right">
                   <button className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1 rounded transition-colors">
-                    <MoreHorizontal size={16} />
+                    <MoreHorizontal size={14} />
                   </button>
                 </td>
               </tr>
