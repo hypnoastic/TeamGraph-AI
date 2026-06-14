@@ -1,18 +1,29 @@
 import axios from 'axios';
 
-export function getApiClient() {
-  const apiKey = process.env.TEAMGRAPH_API_KEY;
-  const serverUrl = process.env.TEAMGRAPH_SERVER_URL || 'http://localhost:8000';
+import { readConfig } from './configStore';
+import type { TeamGraphCliConfig } from './types';
+
+export function resolveConfig(): TeamGraphCliConfig {
+  const config = readConfig();
+  const apiKey = process.env.TEAMGRAPH_API_KEY || config?.apiKey;
+  const serverUrl = process.env.TEAMGRAPH_SERVER_URL || config?.serverUrl || 'http://localhost:8000';
 
   if (!apiKey) {
-    throw new Error('TEAMGRAPH_API_KEY environment variable is not set. Please make sure the MCP server is launched with this variable.');
+    throw new Error(
+      'TEAMGRAPH_API_KEY is not configured. Run `teamgraph-mcp login --api-key <key>` or set TEAMGRAPH_API_KEY.'
+    );
   }
 
+  return { apiKey, serverUrl };
+}
+
+export function getApiClient() {
+  const config = resolveConfig();
   return axios.create({
-    baseURL: serverUrl,
+    baseURL: config.serverUrl,
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    }
+      Authorization: `Bearer ${config.apiKey}`,
+      'Content-Type': 'application/json',
+    },
   });
 }
