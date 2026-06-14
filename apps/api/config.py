@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="demo_secret_key_change_me", alias="SECRET_KEY")
     environment: str = Field(default="local", alias="ENVIRONMENT")
     frontend_origin: str = Field(default="http://localhost:3000", alias="FRONTEND_ORIGIN")
+    public_base_url: str = Field(default="http://localhost:3000", alias="PUBLIC_BASE_URL")
+    api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
+    database_url: str = Field(default="sqlite:///./teamgraph.db", alias="DATABASE_URL")
+    session_ttl_hours: int = Field(default=168, alias="SESSION_TTL_HOURS")
 
     neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
     neo4j_username: str = Field(
@@ -47,6 +51,29 @@ class Settings(BaseSettings):
     teamgraph_default_project: str = Field(
         default="Core Platform",
         alias="TEAMGRAPH_DEFAULT_PROJECT",
+    )
+    teamgraph_default_domain: str = Field(default="acme.local", alias="TEAMGRAPH_DEFAULT_DOMAIN")
+
+    github_app_id: str | None = Field(default=None, alias="GITHUB_APP_ID")
+    github_client_id: str | None = Field(default=None, alias="GITHUB_CLIENT_ID")
+    github_client_secret: str | None = Field(default=None, alias="GITHUB_CLIENT_SECRET")
+    github_webhook_secret: str | None = Field(default=None, alias="GITHUB_WEBHOOK_SECRET")
+    github_private_key: str | None = Field(default=None, alias="GITHUB_PRIVATE_KEY")
+    github_app_slug: str | None = Field(default=None, alias="GITHUB_APP_SLUG")
+
+    slack_client_id: str | None = Field(default=None, alias="SLACK_CLIENT_ID")
+    slack_client_secret: str | None = Field(default=None, alias="SLACK_CLIENT_SECRET")
+    slack_signing_secret: str | None = Field(default=None, alias="SLACK_SIGNING_SECRET")
+    slack_bot_scopes: str = Field(
+        default="channels:history,channels:read,groups:history,groups:read,users:read",
+        alias="SLACK_BOT_SCOPES",
+    )
+
+    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    google_drive_scopes: str = Field(
+        default="https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email",
+        alias="GOOGLE_DRIVE_SCOPES",
     )
 
 

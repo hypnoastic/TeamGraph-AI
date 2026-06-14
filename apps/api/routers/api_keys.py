@@ -1,12 +1,16 @@
 import datetime
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from auth.api_keys import generate_api_key, validate_scopes
 from auth.demo_auth import get_current_user
-from database import neo4j_db
+from models import ApiKeyRecord
+from postgres import get_db
 from services.team_service import user_can_access_project
 
 
@@ -34,109 +38,76 @@ class ApiKeyResponse(BaseModel):
     last_used_at: str | None = None
 
 
-def _requested_project_name(request: CreateApiKeyRequest) -> str | None:
-    return request.project_name
-
-
 @router.post("/", response_model=ApiKeyResponse)
-def create_api_key(request: CreateApiKeyRequest, user: dict = Depends(get_current_user)):
+def create_api_key(
+    request: CreateApiKeyRequest,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if not validate_scopes(request.scopes, ALLOWED_SCOPES):
         raise HTTPException(status_code=400, detail="One or more requested scopes are invalid.")
 
-    project_name = _requested_project_name(request)
-    if project_name and not user_can_access_project(user, project_name):
+    if request.project_name and not user_can_access_project(user, request.project_name):
         raise HTTPException(status_code=403, detail="You do not have access to that project.")
-
     if user["role"] != "admin" and "graph.optimize" in request.scopes:
         raise HTTPException(status_code=403, detail="Members cannot create optimizer-scoped API keys.")
 
     raw_key, key_hash, prefix = generate_api_key()
-    key_id = f"key_{uuid.uuid4().hex[:12]}"
-    created_at = datetime.datetime.utcnow().isoformat()
-
-    query = """
-    MATCH (u:User {id: $user_id})
-    CREATE (k:ApiKeyRef {
-        id: $key_id,
-        keyHash: $key_hash,
-        keyPrefix: $prefix,
-        userId: $user_id,
-        projectId: $project_id,
-        projectName: $project_name,
-        purpose: $purpose,
-        scopes: $scopes,
-        status: 'active',
-        createdAt: $created_at,
-        lastUsedAt: null
-    })
-    MERGE (u)-[:OWNS_API_KEY]->(k)
-    RETURN k
-    """
-    result = neo4j_db.execute_query(
-        query,
-        {
-            "user_id": user["id"],
-            "key_id": key_id,
-            "key_hash": key_hash,
-            "prefix": prefix,
-            "project_id": request.project_id,
-            "project_name": project_name,
-            "purpose": request.purpose,
-            "scopes": request.scopes,
-            "created_at": created_at,
-        },
+    created_at = datetime.datetime.utcnow()
+    key = ApiKeyRecord(
+        id=f"key_{uuid.uuid4().hex[:12]}",
+        user_id=user["id"],
+        key_hash=key_hash,
+        key_prefix=prefix,
+        purpose=request.purpose,
+        scopes=json.dumps(request.scopes),
+        status="active",
+        project_name=request.project_name,
+        created_at=created_at,
     )
-    if not result:
-        raise HTTPException(status_code=500, detail="Failed to create API key")
+    db.add(key)
+    db.commit()
 
-    node = result[0]["k"]
     return {
-        "id": node["id"],
+        "id": key.id,
         "raw_key": raw_key,
-        "key_prefix": node["keyPrefix"],
-        "purpose": node["purpose"],
-        "scopes": node["scopes"],
-        "status": node["status"],
-        "project_name": node.get("projectName"),
-        "created_at": node["createdAt"],
-        "last_used_at": node.get("lastUsedAt"),
+        "key_prefix": key.key_prefix,
+        "purpose": key.purpose,
+        "scopes": request.scopes,
+        "status": key.status,
+        "project_name": key.project_name,
+        "created_at": created_at.isoformat(),
+        "last_used_at": None,
     }
 
 
 @router.get("/", response_model=list[ApiKeyResponse])
-def list_api_keys(user: dict = Depends(get_current_user)):
-    query = """
-    MATCH (u:User {id: $user_id})-[:OWNS_API_KEY]->(k:ApiKeyRef)
-    RETURN k
-    ORDER BY k.createdAt DESC
-    """
-    results = neo4j_db.execute_query(query, {"user_id": user["id"]})
-    keys = []
-    for record in results:
-        node = record["k"]
-        keys.append(
-            {
-                "id": node["id"],
-                "key_prefix": node["keyPrefix"],
-                "purpose": node.get("purpose", "API key"),
-                "scopes": node.get("scopes", []),
-                "status": node["status"],
-                "project_name": node.get("projectName"),
-                "created_at": node["createdAt"],
-                "last_used_at": node.get("lastUsedAt"),
-            }
-        )
-    return keys
+def list_api_keys(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    keys = db.execute(
+        select(ApiKeyRecord).where(ApiKeyRecord.user_id == user["id"]).order_by(ApiKeyRecord.created_at.desc())
+    ).scalars().all()
+    return [
+        {
+            "id": key.id,
+            "key_prefix": key.key_prefix,
+            "purpose": key.purpose,
+            "scopes": json.loads(key.scopes),
+            "status": key.status,
+            "project_name": key.project_name,
+            "created_at": key.created_at.isoformat(),
+            "last_used_at": key.last_used_at.isoformat() if key.last_used_at else None,
+        }
+        for key in keys
+    ]
 
 
 @router.delete("/{key_id}")
-def revoke_api_key(key_id: str, user: dict = Depends(get_current_user)):
-    query = """
-    MATCH (u:User {id: $user_id})-[:OWNS_API_KEY]->(k:ApiKeyRef {id: $key_id})
-    SET k.status = 'revoked'
-    RETURN k
-    """
-    result = neo4j_db.execute_query(query, {"user_id": user["id"], "key_id": key_id})
-    if not result:
+def revoke_api_key(key_id: str, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    key = db.execute(
+        select(ApiKeyRecord).where(ApiKeyRecord.id == key_id, ApiKeyRecord.user_id == user["id"])
+    ).scalar_one_or_none()
+    if key is None:
         raise HTTPException(status_code=404, detail="API key not found or not owned by user")
+    key.status = "revoked"
+    db.commit()
     return {"status": "success"}

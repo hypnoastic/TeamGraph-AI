@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
 from database import neo4j_db
+from models import Base
+from postgres import SessionLocal, engine
 from routers import (
     activity,
     api_keys,
@@ -20,10 +22,14 @@ from routers import (
     team,
 )
 from services.graphiti.service import graphiti_service
+from services.postgres_seed import seed_postgres
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        seed_postgres(db)
     neo4j_db.connect()
     await graphiti_service.initialize_graphiti()
     yield

@@ -1,8 +1,16 @@
+from __future__ import annotations
+
 import datetime
+import json
 import uuid
 from typing import Any
 
-from database import neo4j_db
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from config import settings
+from models import ActivityRecord
+from postgres import SessionLocal
 
 
 def record_activity(
@@ -12,47 +20,54 @@ def record_activity(
     description: str,
     actor: dict | None = None,
     metadata: dict[str, Any] | None = None,
+    db: Session | None = None,
 ) -> dict[str, Any]:
-    event_id = f"act_{uuid.uuid4().hex[:12]}"
-    created_at = datetime.datetime.utcnow().isoformat()
-    actor_id = actor.get("id") if actor else None
-    actor_email = actor.get("email") if actor else None
-
-    query = """
-    CREATE (a:ActivityEvent {
-        id: $event_id,
-        type: $event_type,
-        title: $title,
-        description: $description,
-        actorId: $actor_id,
-        actorEmail: $actor_email,
-        metadataJson: $metadata_json,
-        createdAt: $created_at
-    })
-    RETURN a
-    """
-    result = neo4j_db.execute_query(
-        query,
-        {
-            "event_id": event_id,
-            "event_type": event_type,
-            "title": title,
-            "description": description,
-            "actor_id": actor_id,
-            "actor_email": actor_email,
-            "metadata_json": str(metadata or {}),
-            "created_at": created_at,
-        },
-    )
-    return result[0]["a"] if result else {}
+    created_session = db is None
+    session = db or SessionLocal()
+    try:
+        event = ActivityRecord(
+            id=f"act_{uuid.uuid4().hex[:12]}",
+            organization_id=(actor or {}).get("org_id", settings.teamgraph_org_id),
+            type=event_type,
+            title=title,
+            description=description,
+            actor_id=(actor or {}).get("id"),
+            actor_email=(actor or {}).get("email"),
+            metadata_json=json.dumps(metadata or {}),
+            created_at=datetime.datetime.utcnow(),
+        )
+        session.add(event)
+        session.commit()
+        return {
+            "id": event.id,
+            "type": event.type,
+            "title": event.title,
+            "description": event.description,
+            "actorId": event.actor_id,
+            "actorEmail": event.actor_email,
+            "metadataJson": event.metadata_json,
+            "createdAt": event.created_at.isoformat(),
+        }
+    finally:
+        if created_session:
+            session.close()
 
 
 def list_activity(limit: int = 50) -> list[dict[str, Any]]:
-    query = """
-    MATCH (a:ActivityEvent)
-    RETURN a
-    ORDER BY a.createdAt DESC
-    LIMIT $limit
-    """
-    results = neo4j_db.execute_query(query, {"limit": limit})
-    return [record["a"] for record in results]
+    with SessionLocal() as session:
+        events = session.execute(
+            select(ActivityRecord).order_by(ActivityRecord.created_at.desc()).limit(limit)
+        ).scalars().all()
+        return [
+            {
+                "id": event.id,
+                "type": event.type,
+                "title": event.title,
+                "description": event.description,
+                "actorId": event.actor_id,
+                "actorEmail": event.actor_email,
+                "metadataJson": event.metadata_json,
+                "createdAt": event.created_at.isoformat(),
+            }
+            for event in events
+        ]

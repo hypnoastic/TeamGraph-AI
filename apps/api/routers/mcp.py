@@ -1,11 +1,16 @@
+import datetime
+import json
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from auth.api_keys import has_scope, hash_api_key
 from config import settings
-from database import neo4j_db
+from models import ApiKeyRecord, Project, User, UserProjectAccess
+from postgres import get_db
 from services.brain_service import BrainQueryRequest, execute_brain_query
 from services.context_service import UploadContextRequest, process_upload
 from services.optimizer import run_optimizer
@@ -27,7 +32,10 @@ class HandoffRequest(BaseModel):
     query: str
 
 
-def verify_mcp_key(authorization: Optional[str] = Header(None)):
+def verify_mcp_key(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db),
+):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid MCP API key")
 
@@ -45,40 +53,35 @@ def verify_mcp_key(authorization: Optional[str] = Header(None)):
         }
 
     key_hash = hash_api_key(token)
-    query = """
-    MATCH (u:User)-[:OWNS_API_KEY]->(k:ApiKeyRef {keyHash: $hash, status: 'active'})
-    OPTIONAL MATCH (u)-[:CAN_ACCESS]->(p:Project)
-    RETURN u, k, collect(DISTINCT p.name) AS projects
-    LIMIT 1
-    """
-    results = neo4j_db.execute_query(query, {"hash": key_hash})
-    if not results:
+    key = db.execute(
+        select(ApiKeyRecord).where(ApiKeyRecord.key_hash == key_hash, ApiKeyRecord.status == "active")
+    ).scalar_one_or_none()
+    if key is None:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
-    user = results[0]["u"]
-    key = results[0]["k"]
-    projects = [project for project in results[0].get("projects", []) if project]
-    scopes = key.get("scopes", [])
-    if isinstance(scopes, str):
-        scopes = [scopes]
+    user = db.get(User, key.user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Invalid API key")
 
-    neo4j_db.execute_query(
-        """
-        MATCH (k:ApiKeyRef {id: $key_id})
-        SET k.lastUsedAt = $now
-        """,
-        {"key_id": key["id"], "now": __import__("datetime").datetime.utcnow().isoformat()},
-    )
+    project_names = db.execute(
+        select(Project.name)
+        .join(UserProjectAccess, UserProjectAccess.project_id == Project.id)
+        .where(UserProjectAccess.user_id == user.id)
+        .order_by(Project.name.asc())
+    ).scalars().all()
+    scopes = json.loads(key.scopes)
+    key.last_used_at = datetime.datetime.utcnow()
+    db.commit()
 
     return {
-        "id": user.get("id"),
-        "email": user.get("email"),
-        "role": user.get("role", "member"),
-        "org_id": settings.teamgraph_org_id,
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "org_id": user.organization_id,
         "org_name": settings.teamgraph_org_name,
-        "project_names": projects,
+        "project_names": project_names,
         "scopes": scopes,
-        "key_id": key.get("id"),
+        "key_id": key.id,
     }
 
 
@@ -153,6 +156,8 @@ async def tool_upload_context(request: UploadContextRequest, user: dict = Depend
 @router.get("/tool/list-context-sources")
 def tool_list_context_sources(user: dict = Depends(verify_mcp_key)):
     require_scope(user, "context.read")
+    from database import neo4j_db
+
     query = """
     MATCH (c:Context)
     RETURN c.sourceType AS sourceType, count(*) AS count
