@@ -1,21 +1,37 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from config import settings
-from routers import health, auth, api_keys, context, approvals, brain, settings as settings_router, mcp
-from database import neo4j_db
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+from config import settings
+from database import neo4j_db
+from routers import (
+    api_keys,
+    approvals,
+    auth,
+    brain,
+    context,
+    health,
+    mcp,
+    settings as settings_router,
+)
+from services.graphiti.service import graphiti_service
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     neo4j_db.connect()
+    await graphiti_service.initialize_graphiti()
     yield
+    await graphiti_service.close()
     neo4j_db.close()
+
 
 app = FastAPI(title="TeamGraph Live Brain API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[settings.frontend_origin, "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,4 +48,5 @@ app.include_router(mcp.router)
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=settings.api_port, reload=True)

@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def seed_database():
-    neo4j_db = Neo4jClient(settings.neo4j_uri, settings.neo4j_user, settings.neo4j_password)
+    neo4j_db = Neo4jClient(settings.neo4j_uri, settings.neo4j_username, settings.neo4j_password)
     neo4j_db.connect()
 
     schema_file = os.path.join(os.path.dirname(__file__), "..", "graph", "schema.cypher")

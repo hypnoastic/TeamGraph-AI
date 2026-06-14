@@ -5,5 +5,7 @@ pydantic>=2.4.0
 pydantic-settings>=2.0.3
 python-dotenv>=1.0.0
 google-genai>=0.3.0
+graphiti-core[google-genai]>=0.18.0
+openai>=1.54.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.6
