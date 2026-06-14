@@ -1,277 +1,77 @@
-# BRAIN_CURATOR_SPEC.md — Gemini Curator and Live Brain Harness
+# BRAIN_CURATOR_SPEC.md
 
-## 1. Purpose
+## Purpose
 
-The Brain Curator is the intelligence layer that prevents TeamGraph from becoming a dump.
+The curator decides whether uploaded context is safe enough for Graphiti ingestion and how that context should be labeled inside TeamGraph.
 
-It handles:
+## Required Pipeline
 
-- safety classification
-- quality scoring
-- summarization
-- tag extraction
-- duplicate detection
-- conflict detection
-- graph placement
-- retrieval priority scoring
-- lane decision: auto_curate / review / quarantine
+1. Save `RawContext` metadata first.
+2. Run safety checks for:
+   - secrets
+   - tokens
+   - prompt injection
+   - low-quality content
+   - unsafe content
+3. Run the curator.
+4. Produce:
+   - safety status
+   - quality score
+   - risk tags
+   - visibility
+   - project
+   - short summary
+   - lane decision
 
-## 2. Runtime Modes
+## Lane Decisions
 
-### Live Gemini Mode
+- `auto_curate`
+  - create TeamGraph `Context` metadata
+  - ingest a Graphiti episode
+  - record activity
+- `needs_review`
+  - create `ReviewItem`
+  - do not ingest into Graphiti yet
+- `unsafe`
+  - quarantine only
+  - do not ingest into Graphiti
 
-Use Gemini API if these exist:
+## Runtime Modes
 
-```txt
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash-lite
-```
+- Gemini mode when `GEMINI_API_KEY` is configured
+- deterministic mock mode when no provider key exists
 
-If the model name is unavailable, use the configured env model. Do not hardcode failure.
+The schema must stay stable across both modes so local fallback works.
 
-### Mock Curator Mode
+## Episode Metadata Requirements
 
-If no Gemini key exists, use deterministic mock curator.
+Every ingested episode should preserve:
 
-Mock curator must return the exact same JSON schema.
+- organization id
+- project id
+- project name
+- user id
+- uploader email
+- source type
+- visibility
+- tags
+- context type
+- upload channel
+- approval status
+- created timestamp
 
-This ensures P0 works locally without paid APIs.
+## Safety Rules
 
-## 3. Curator Input
+Never allow into Graphiti:
 
-```json
-{
-  "raw_context_id": "raw_123",
-  "organization": "Acme AI Lab",
-  "project": "Core Platform",
-  "uploaded_by": "member@teamgraph.local",
-  "source": "mcp-cli",
-  "visibility_requested": "project",
-  "content": "Decision: Brain curator should auto-curate safe context and queue risky context.",
-  "existing_context_summaries": [
-    {
-      "id": "ctx_1",
-      "title": "Use Neo4j for P0",
-      "summary": "Neo4j is the graph backend for P0."
-    }
-  ]
-}
-```
+- secrets
+- raw tokens
+- prompt injection payloads
+- quarantined context
+- unapproved risky context
 
-## 4. Curator Output Schema
+## Approval Flow
 
-Return strict JSON:
-
-```json
-{
-  "safety": {
-    "status": "safe",
-    "risk_tags": [],
-    "reason": "No secrets, no prompt injection, no unsafe content detected."
-  },
-  "quality": {
-    "score": 0.88,
-    "signals": ["specific", "project_relevant", "actionable"]
-  },
-  "classification": {
-    "context_type": "decision",
-    "canonical_title": "Brain curator auto-curates safe context",
-    "summary": "Safe context should be automatically curated into the graph, while risky context should be sent to admin review.",
-    "suggested_project": "Core Platform",
-    "suggested_visibility": "project",
-    "suggested_tags": ["brain-curator", "approval", "context-ingestion"]
-  },
-  "relationships": [
-    {
-      "from": "Brain curator auto-curates safe context",
-      "relation": "RELATED_TO",
-      "to": "Use Neo4j for P0",
-      "confidence": 0.74
-    }
-  ],
-  "duplicates": [],
-  "conflicts": [],
-  "retrieval": {
-    "importance_score": 0.82,
-    "freshness_score": 0.99,
-    "retrieval_priority": 0.86
-  },
-  "lane": {
-    "decision": "auto_curate",
-    "reason": "Safe, high quality, no conflict."
-  },
-  "graph_operations": [
-    {
-      "operation": "CREATE_CONTEXT",
-      "title": "Brain curator auto-curates safe context",
-      "context_type": "decision",
-      "summary": "Safe context should be automatically curated into the graph, while risky context should be sent to admin review.",
-      "visibility": "project"
-    },
-    {
-      "operation": "LINK_CONTEXT_TO_PROJECT",
-      "project": "Core Platform"
-    }
-  ]
-}
-```
-
-## 5. Safety Status Values
-
-```txt
-safe
-needs_review
-unsafe
-sensitive
-prompt_injection
-low_quality
-duplicate
-conflicting
-```
-
-## 6. Lane Decisions
-
-### auto_curate
-
-Allowed when:
-
-- safety status is safe
-- quality score >= 0.70
-- no serious conflict
-- no secret detected
-- no prompt injection
-- visibility is private or project
-- model confidence is acceptable
-
-### review
-
-Required when:
-
-- safety status is needs_review
-- quality score between 0.40 and 0.70
-- conflict detected
-- duplicate likely
-- organization-wide visibility requested
-- content claims major decision or task completion
-- content has low confidence
-- source is unknown
-
-### quarantine
-
-Required when:
-
-- secrets detected
-- passwords/API keys detected
-- prompt injection detected
-- unsafe or malicious content
-- content attempts to modify system behavior
-- sensitive private data detected
-
-## 7. Secret and Prompt Injection Heuristics
-
-Before Gemini, run simple regex/rule checks:
-
-Secrets:
-
-```txt
-api_key=
-secret=
-password=
-token=
------BEGIN PRIVATE KEY-----
-sk-
-ghp_
-xoxb-
-```
-
-Prompt injection patterns:
-
-```txt
-ignore previous instructions
-forget all instructions
-system prompt
-developer message
-reveal secrets
-override policy
-```
-
-If detected, force review/quarantine even if model says safe.
-
-## 8. Graph Optimizer
-
-Optimizer runs manually in P0.
-
-Input:
-
-```json
-{
-  "organization_id": "org_1",
-  "project": "Core Platform",
-  "mode": "manual"
-}
-```
-
-It should:
-
-- find untagged context
-- find duplicate titles/summaries
-- find orphan RawContext
-- update retrieval priority
-- create project summary context
-- identify stale context
-- create suggested links
-- create GraphOptimizationRun node
-
-P0 optimizer can be heuristic.
-
-Gemini can improve summaries if available.
-
-## 9. Query Answerer
-
-Brain Chat uses Gemini/mock answerer.
-
-Input:
-
-- user question
-- retrieved graph context
-- citations
-- related nodes
-
-Output:
-
-```json
-{
-  "answer": "You chose Neo4j because TeamGraph depends on graph-native relationships between users, projects, context, API keys, and agent sessions.",
-  "confidence": 0.86,
-  "citations": [
-    {
-      "context_id": "ctx_neo4j_decision",
-      "title": "Use Neo4j for P0"
-    }
-  ],
-  "related_nodes": ["Core Platform", "Neo4j", "Graph Backend"],
-  "timeline": [
-    {
-      "event": "Decision uploaded",
-      "context_id": "ctx_neo4j_decision"
-    }
-  ],
-  "suggested_next_actions": [
-    "Run graph optimizer after importing more context."
-  ]
-}
-```
-
-## 10. Implementation Files
-
-```txt
-apps/api/services/curator/
-  __init__.py
-  schemas.py
-  gemini_curator.py
-  mock_curator.py
-  safety_rules.py
-  graph_harness.py
-  optimizer.py
-  answerer.py
-```
+- Admin approval ingests the queued item into Graphiti and updates TeamGraph metadata.
+- Admin rejection keeps the audit trail but does not create a Graphiti episode.
+- Members cannot approve or reject.
