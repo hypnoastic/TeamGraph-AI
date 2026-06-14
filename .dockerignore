@@ -1,0 +1,14 @@
+.git
+.next
+node_modules
+apps/web/node_modules
+packages/teamgraph-mcp/node_modules
+apps/api/venv
+apps/api/__pycache__
+apps/web/.next
+neo4j_data
+neo4j_logs
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
