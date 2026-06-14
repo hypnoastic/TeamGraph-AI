@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background-base: #050505;
+  --color-background-surface: #0A0A0B;
+  --color-card-base: #161618;
+  --color-card-hover: #1C1C1F;
+  --color-text-primary: #E5E2E1;
+  --color-text-secondary: #919094;
+  --color-text-muted: #46464A;
+  --color-accent-brain: #00F5D4;
+  --color-accent-mcp: #10B981;
+  --color-accent-safe: #22C55E;
+  --color-accent-review: #F59E0B;
+  --color-accent-unsafe: #F43F5E;
+  --color-border-subtle: #262629;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background-base);
+    color: var(--color-text-primary);
+    font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  }
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-text-primary) 0%, var(--color-text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.card {
+  background-color: var(--color-card-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 0.75rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  background-color: var(--color-card-hover);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.input-field {
+  background-color: var(--color-background-surface);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-field:focus {
+  border-color: var(--color-accent-brain);
+}
+
+.btn-primary {
+  background-color: var(--color-text-primary);
+  color: var(--color-background-base);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-secondary {
+  background-color: var(--color-card-base);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-subtle);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-card-hover);
+}
