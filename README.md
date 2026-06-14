@@ -1,6 +1,6 @@
 # TeamGraph AI
 
-TeamGraph AI is a local-first organization brain. The product wraps Graphiti as the live temporal memory engine, keeps Neo4j as the graph database underneath, and uses TeamGraph as the control layer for permissions, approvals, API keys, audit logs, and UI workflows.
+TeamGraph AI is a Graphiti-powered organization brain. Graphiti and Neo4j handle memory; TeamGraph wraps them with Postgres-backed auth, permissions, approvals, API keys, connector control, MCP access, and a hackathon-ready web product.
 
 ## Architecture
 
@@ -15,63 +15,69 @@ User / Admin
 External Agent
   -> @teamgraph/mcp CLI
   -> TeamGraph FastAPI backend
-  -> API key validation
+  -> Postgres-backed API key validation
   -> Graphiti search / episode ingestion
   -> Neo4j
 ```
 
-Graphiti is not exposed directly. All reads and writes go through the TeamGraph backend so organization scoping, approval routing, visibility rules, activity logs, and future billing controls stay intact.
+Postgres is the control-plane database. Graphiti + Neo4j stay focused on knowledge and retrieval.
 
-## Why Graphiti
+## What Works
 
-The original P0 stored product memory directly in Neo4j. This upgrade adds Graphiti as the live brain layer so TeamGraph can ingest temporal episodes, retrieve richer memory context, and still fall back safely to deterministic Neo4j retrieval when no LLM provider is configured.
-
-## Features Preserved
-
-- Landing page
-- Demo admin/member login
+- Landing page and upgraded auth UI
+- Real signup/login backed by Postgres
+- Seeded demo accounts and seeded demo knowledge
 - Brain Chat
 - Context upload and inbox
 - Approval queue
-- API key management with hashed keys
+- Postgres-backed API keys
 - `@teamgraph/mcp` CLI and MCP server
-- Graph visualization
-- Dummy connectors
-- Team roles
-- Activity logs
+- Graph visualization with Graphiti-oriented memory styling
+- Team and activity views
+- Connector control surface for GitHub, Slack, and Google Drive
 - Local Neo4j Docker workflow
+- Production Docker packaging for EC2
+
+## Demo Accounts
+
+- `admin@teamgraph.local` / `password`
+- `member@teamgraph.local` / `password`
+- `demo@teamgraph.local` / `password`
+
+The `demo@teamgraph.local` account is seeded with dummy launch, connector, and deployment knowledge for hackathon demos.
 
 ## Local Setup
 
-1. Start Neo4j.
+1. Copy `.env.example` to `.env` and set `DATABASE_URL`. Use your Neon connection string there.
+2. Start Neo4j.
 
 ```bash
 docker compose up -d neo4j
 ```
 
-2. Apply the schema and seed demo data.
+3. Seed Postgres and Neo4j.
 
 ```bash
 cd apps/api
 python3 scripts/seed.py
 ```
 
-3. Start the backend.
+4. Start the backend.
 
 ```bash
 cd apps/api
-source .venv/bin/activate
+source venv/bin/activate
 uvicorn main:app --reload --port 8000
 ```
 
-4. Start the frontend.
+5. Start the frontend.
 
 ```bash
 cd apps/web
 npm run dev
 ```
 
-5. Build and link the CLI.
+6. Build and link the CLI.
 
 ```bash
 cd packages/teamgraph-mcp
@@ -79,91 +85,86 @@ npm run build
 npm link
 ```
 
-## Environment Variables
+## AWS EC2 Deployment
 
-Copy `.env.example` to `.env` and configure as needed.
+Use the production compose stack on a single EC2 host:
 
-- `GEMINI_API_KEY`
-- `GEMINI_MODEL`
-- `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OPENAI_BASE_URL`
-- `GRAPHITI_LLM_PROVIDER`
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+```
+
+Production packaging added in this repo:
+
+- `apps/api/Dockerfile`
+- `apps/web/Dockerfile`
+- `deploy/nginx.conf`
+- `docker-compose.prod.yml`
+
+Expected production env vars:
+
+- `DATABASE_URL`
+- `PUBLIC_BASE_URL`
+- `API_BASE_URL`
+- `FRONTEND_ORIGIN`
 - `NEO4J_URI`
 - `NEO4J_USERNAME`
 - `NEO4J_PASSWORD`
-- `TEAMGRAPH_API_KEY`
+- Graphiti provider env vars
+- GitHub / Slack / Google connector credentials
 
-Provider priority:
+## Auth and API Key Flow
 
-1. Gemini if configured
-2. OpenAI-compatible if configured
-3. Safe fallback mode if neither exists
-
-## Demo Users
-
-- Admin: `admin@teamgraph.local` / `password`
-- Member: `member@teamgraph.local` / `password`
+- Signup/login is stored in Postgres.
+- Session tokens are bearer tokens backed by Postgres session records.
+- API keys are hashed before storage and validated from Postgres on MCP calls.
+- Demo shortcuts log into seeded Postgres users, not hardcoded mock tokens.
 
 ## Brain Chat Flow
 
-1. User asks a question from the Brain page.
-2. Backend validates role and project access.
-3. TeamGraph calls the Graphiti wrapper for search.
-4. Results are enriched with TeamGraph metadata and citations.
-5. Gemini answers if configured, otherwise the backend returns a deterministic fallback answer.
+1. User signs in.
+2. TeamGraph validates project access from Postgres.
+3. Graphiti search runs first.
+4. TeamGraph enriches results with metadata and citations.
+5. Gemini answers if configured; deterministic fallback answers otherwise.
 
-## Context Upload Flow
+## Context Upload and Approval Flow
 
 1. UI or CLI uploads context.
-2. TeamGraph stores `RawContext` metadata first.
-3. Safety heuristics run for secrets, prompt injection, and low-quality content.
-4. Curator assigns safety, quality, summary, tags, project, and visibility.
-5. Safe context is ingested into Graphiti and linked back to TeamGraph `Context` metadata.
-6. Risky context goes to the approval queue and is not ingested yet.
-7. Unsafe context is quarantined and kept out of Graphiti.
+2. TeamGraph stores raw metadata.
+3. Safety checks run before ingestion.
+4. Safe content is linked to Graphiti memory.
+5. Risky content goes to approvals.
+6. Unsafe content is quarantined.
 
-## Approval Flow
+## Connectors
 
-- Admin approval ingests the queued item into Graphiti, updates metadata, and logs activity.
-- Admin rejection preserves the audit trail and leaves Graphiti untouched.
-- Members cannot approve or reject context.
+Current connector state:
 
-## API Key Flow
+- GitHub: real install/start URL support and persisted connection state
+- Slack: real OAuth start URL support and persisted connection state
+- Google Drive: real OAuth start URL support and persisted connection state
+- Notion, Jira, Teams, Outlook: still clearly marked as coming soon
 
-- API keys are created in the dashboard.
-- Raw keys are shown once and only hashed values are stored in Neo4j.
-- MCP calls validate the API key and scope before accessing TeamGraph memory.
+Important: without real provider credentials in `.env`, live provider verification cannot complete. The product surface is wired for them, but final live OAuth/install testing depends on those credentials.
 
 ## CLI Commands
 
 ```bash
-teamgraph-mcp login --api-key <key> [--server-url http://localhost:8000]
+teamgraph-mcp login --api-key <key> --server-url http://localhost:8000
 teamgraph-mcp status
 teamgraph-mcp serve
-teamgraph-mcp get-context --query "..." [--project "Core Platform"]
-teamgraph-mcp upload-context --text "..." --project "Core Platform"
+teamgraph-mcp get-context --query "What does the demo brain know?"
+teamgraph-mcp upload-context --text "Decision: approvals gate risky memory." --project "Core Platform"
 teamgraph-mcp upload-context --file ./context.md --project "Core Platform"
 teamgraph-mcp list-context-sources
 teamgraph-mcp optimize-graph
 ```
 
-## Graphiti Modes
-
-- `live`: Graphiti initialized successfully and is the primary retrieval/ingestion engine.
-- `fallback`: Graphiti is unavailable or unconfigured. TeamGraph continues running via deterministic Neo4j-backed retrieval.
-
-The dashboard shows Graphiti mode, Neo4j status, latest episode ingestion state, pending approvals, auto-curated count, and quarantined count.
-
-## Slack and GitHub
-
-Slack and GitHub integrations remain intentionally unfinished. The product keeps connector cards, backend stub structures, and coming-soon states, but does not implement real OAuth or syncing yet. The same is true for the other demo connectors shown in the UI.
-
 ## Known Limitations
 
-- Graphiti runtime calls are wrapped defensively, but live Graphiti behavior still depends on local provider setup.
-- Slack, GitHub, Notion, Drive, Jira, Teams, and Outlook are demo-only connectors.
-- Demo auth is still local and static.
-- The backfill utility only migrates trusted contexts that do not already have a Graphiti episode UUID.
+- GitHub, Slack, and Google Drive need real app credentials before end-to-end live OAuth/install testing can be completed.
+- Graphiti live behavior still depends on your configured provider and local Neo4j availability.
+- Approval metadata is still primarily modeled in the graph path and has not been fully normalized into Postgres tables.
+- The current auth model uses bearer session tokens rather than cookie sessions.
 
-See `CONTEXT.md` for the current implementation handoff and file-level status.
+See `CONTEXT.md` for the implementation handoff and current repo status.
