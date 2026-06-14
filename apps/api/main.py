@@ -21,6 +21,7 @@ from routers import (
     settings as settings_router,
     team,
 )
+from services.bootstrap_service import ensure_neo4j_bootstrap
 from services.graphiti.service import graphiti_service
 from services.postgres_seed import seed_postgres
 
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
     with SessionLocal() as db:
         seed_postgres(db)
     neo4j_db.connect()
+    ensure_neo4j_bootstrap()
     await graphiti_service.initialize_graphiti()
     yield
     await graphiti_service.close()
