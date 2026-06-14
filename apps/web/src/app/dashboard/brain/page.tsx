@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Send, Bot, User, Database, ChevronRight, Activity, Clock } from 'lucide-react';
+import { Send, Bot, User, Database, Network } from 'lucide-react';
 import axios from 'axios';
 
 export default function BrainChatPage() {
