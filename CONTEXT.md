@@ -1,95 +1,172 @@
-# CONTEXT.md — TeamGraph Live Brain Handoff
+# CONTEXT.md
 
-*This document is the definitive handoff guide for any AI Agent or Developer picking up the TeamGraph AI Live Brain project.*
+## Current Implementation Status
 
----
+- State: Graphiti-powered TeamGraph upgrade implemented.
+- Date: June 14, 2026.
+- Runtime model: TeamGraph backend controls all access, Graphiti is wrapped behind internal services, Neo4j remains the database, and fallback mode keeps the app usable without provider keys.
 
-## 🎯 Current Status: P0 Completed
-**Date:** June 2026
-**State:** The entire P0 architecture has been successfully scaffolded, implemented, and built. The codebase is complete, the MCP CLI is compiled globally, the Next.js frontend is fully designed, and the FastAPI backend contains all necessary routes.
+## What Changed
 
-> [!WARNING]
-> **Docker Daemon Issue on Host:** During the previous session, the local Docker Daemon on macOS was not running, preventing Neo4j from starting. 
-> **Next Agent/Developer:** You MUST start Docker Desktop locally before running `docker-compose up` or starting the FastAPI backend, otherwise the database connection will fail.
+- Added a dedicated Graphiti wrapper under `apps/api/services/graphiti/`.
+- Upgraded the backend runtime config to support Gemini, OpenAI-compatible, and fallback provider selection.
+- Extended TeamGraph metadata so uploads, approvals, API keys, graph visualization, and activity logs continue working while Graphiti handles live memory ingestion and retrieval.
+- Switched Brain Chat and MCP retrieval to Graphiti-first search with deterministic fallback answers.
+- Wired the dashboard pages to backend endpoints instead of static placeholders.
+- Expanded the `@teamgraph/mcp` CLI with login, status, direct commands, and the full TeamGraph MCP tool set.
+- Added a trusted-context backfill utility for migrating existing `Context` nodes into Graphiti.
 
----
+## Files Modified
 
-## 🏗️ Architecture & Stack
+### Backend
 
-### 1. Database: Neo4j
-- **Location**: `docker-compose.yml` (runs Neo4j v5).
-- **Schema**: Defined in `apps/api/graph/schema.cypher`. It includes constraints for `User`, `Project`, `Context`, `RawContext`, and `ReviewItem`.
-- **Driver**: `Neo4jClient` singleton initialized on FastAPI startup.
+- `apps/api/main.py`
+- `apps/api/config.py`
+- `apps/api/database.py`
+- `apps/api/requirements.txt`
+- `apps/api/graph/neo4j_client.py`
+- `apps/api/graph/schema.cypher`
+- `apps/api/scripts/seed.py`
+- `apps/api/routers/auth.py`
+- `apps/api/routers/health.py`
+- `apps/api/routers/settings.py`
+- `apps/api/routers/context.py`
+- `apps/api/routers/approvals.py`
+- `apps/api/routers/brain.py`
+- `apps/api/routers/mcp.py`
+- `apps/api/routers/api_keys.py`
+- `apps/api/auth/demo_auth.py`
+- `apps/api/auth/api_keys.py`
+- `apps/api/services/context_service.py`
+- `apps/api/services/brain_service.py`
+- `apps/api/services/curator/graph_harness.py`
+- `apps/api/services/curator/safety_rules.py`
+- `apps/api/services/curator/mock_curator.py`
 
-### 2. Backend: FastAPI (`apps/api`)
-- **Port**: 8000
-- **Model**: `gemini-3.1-flash-lite` is prioritized across the app for cost-efficiency.
-- **Core Services**:
-  - `Context Service`: Ingests raw context, routes it to lanes (auto-curate, pending_review, quarantine).
-  - `Curator Harness`: Uses `gemini-3.1-flash-lite` to extract safety, tags, and Neo4j node/edge operations. Defaults to a deterministic mock curator if no Gemini key is provided.
-  - `Brain Service`: Queries the Neo4j graph using `fulltext` search, fetching context, and synthesizing answers via Gemini.
-  - `Approvals`: Endpoints to accept/reject items queued for admin review.
-  - `MCP Endpoints`: `mcp.router` validates external API keys and exposes tools (`get_context`, `upload_context`, `optimize_graph`) to the MCP CLI.
+### Backend Files Added
 
-### 3. Frontend: Next.js + Tailwind (`apps/web`)
-- **Port**: 3000
-- **Design System**: A dark, premium, minimalistic theme generated via **Stitch MCP** based on `UI_STITCH_DESIGN_BRIEF.md`.
-- **UI Pages Built**:
-  - Landing & Login Flow
-  - Brain Chat: Interactive query UI with citation references and agent status animations.
-  - Graph Explorer: Built with `@xyflow/react`.
-  - Context Inbox & Approvals UI.
-  - API Keys, Connectors, Team, and Activity pages.
+- `apps/api/services/graphiti/__init__.py`
+- `apps/api/services/graphiti/config.py`
+- `apps/api/services/graphiti/client.py`
+- `apps/api/services/graphiti/schemas.py`
+- `apps/api/services/graphiti/episodes.py`
+- `apps/api/services/graphiti/search.py`
+- `apps/api/services/graphiti/fallback.py`
+- `apps/api/services/graphiti/service.py`
+- `apps/api/services/activity_service.py`
+- `apps/api/services/team_service.py`
+- `apps/api/services/graph_visualization_service.py`
+- `apps/api/services/connectors/__init__.py`
+- `apps/api/services/connectors/base.py`
+- `apps/api/services/connectors/slack_stub.py`
+- `apps/api/services/connectors/github_stub.py`
+- `apps/api/services/connectors/registry.py`
+- `apps/api/routers/graph.py`
+- `apps/api/routers/activity.py`
+- `apps/api/routers/team.py`
+- `apps/api/routers/connectors.py`
+- `apps/api/scripts/backfill_graphiti.py`
 
-### 4. NPM MCP CLI (`packages/teamgraph-mcp`)
-- **Execution**: The CLI is entirely **stateless**. It does not save config files locally.
-- **Commands**:
-  - `teamgraph-mcp install claude api="<your_api_key>"`: Finds `claude_desktop_config.json`, injects the `teamgraph-live-brain` server, and sets `TEAMGRAPH_API_KEY` in the environment block.
-  - `teamgraph-mcp uninstall claude`: Removes the config cleanly.
-  - Default (`teamgraph-mcp` with no args): Automatically starts the MCP stdio server. This is the exact command Claude executes in the background.
+### Frontend
 
----
+- `apps/web/src/app/page.tsx`
+- `apps/web/src/app/dashboard/layout.tsx`
+- `apps/web/src/app/dashboard/brain/page.tsx`
+- `apps/web/src/app/dashboard/context/page.tsx`
+- `apps/web/src/app/dashboard/approvals/page.tsx`
+- `apps/web/src/app/dashboard/graph/page.tsx`
+- `apps/web/src/app/dashboard/api-keys/page.tsx`
+- `apps/web/src/app/dashboard/connectors/page.tsx`
+- `apps/web/src/app/dashboard/team/page.tsx`
+- `apps/web/src/app/dashboard/activity/page.tsx`
+- `apps/web/src/app/dashboard/settings/page.tsx`
 
-## 🚀 Runbook for the Next Session
+### Frontend Files Added
 
-When starting a new session, follow these steps exactly:
+- `apps/web/src/lib/api.ts`
+- `apps/web/src/lib/config.ts`
+- `apps/web/src/lib/types.ts`
 
-1. **Verify Docker**
-   Ensure Docker Desktop is open and the daemon is running.
-   ```bash
-   docker info
-   ```
+### CLI
 
-2. **Start the Database**
-   ```bash
-   cd "Hakathon/TeamGraph AI"
-   docker-compose up -d
-   ```
+- `packages/teamgraph-mcp/src/apiClient.ts`
+- `packages/teamgraph-mcp/src/cli.ts`
+- `packages/teamgraph-mcp/src/index.ts`
+- `packages/teamgraph-mcp/src/mcpServer.ts`
+- `packages/teamgraph-mcp/src/configStore.ts`
+- `packages/teamgraph-mcp/src/types.ts`
 
-3. **Initialize the Graph Schema** (If running for the first time)
-   ```bash
-   cd apps/api
-   cat graph/schema.cypher | docker exec -i teamgraph-neo4j cypher-shell -u neo4j -p teamgraph123
-   ```
+### Docs and Infra
 
-4. **Start the Backend API**
-   ```bash
-   cd apps/api
-   source venv/bin/activate
-   # Ensure .env contains GEMINI_API_KEY
-   uvicorn main:app --reload
-   ```
+- `README.md`
+- `CONTEXT.md`
+- `.env.example`
+- `docker-compose.yml`
 
-5. **Start the Frontend Dashboard**
-   ```bash
-   cd apps/web
-   npm run dev
-   ```
+## How Graphiti Is Integrated
 
----
+- TeamGraph initializes Graphiti on backend startup through `graphiti_service.initialize_graphiti()`.
+- Safe context uploads and admin-approved review items are converted into `EpisodeMetadata` and ingested via `add_episode_for_context()`.
+- Brain Chat and MCP retrieval call `search_brain()` first.
+- TeamGraph still stores `RawContext`, `Context`, `ReviewItem`, `ApiKeyRef`, and `ActivityEvent` metadata in Neo4j for scoping, approvals, visibility, and audits.
+- If Graphiti initialization or search fails, TeamGraph falls back to Neo4j-backed deterministic retrieval instead of breaking the product.
 
-## 🛠️ Next Recommended Steps (Phase 18+)
+## How To Run Everything
 
-1. **End-to-End Verification**: Now that the code is complete, start Docker Desktop and run the full stack. Verify that the frontend can successfully communicate with the FastAPI backend and that data is successfully persisting in Neo4j.
-2. **Test the MCP CLI Integration**: Run `teamgraph-mcp install claude api="tg_dev_123"` and verify that Claude Desktop can successfully pull context from the running `localhost:8000` FastAPI server.
-3. **Expand Connectors**: Currently, connectors (Slack, GitHub, etc.) are UI-only dummies. The next major product phase is building actual ingestion webhooks for these services that pipe data directly into `/context/upload`.
+1. Start Neo4j.
+
+```bash
+docker compose up -d neo4j
+```
+
+2. Seed the schema and demo data.
+
+```bash
+cd apps/api
+python3 scripts/seed.py
+```
+
+3. Start the backend.
+
+```bash
+cd apps/api
+source .venv/bin/activate
+uvicorn main:app --reload --port 8000
+```
+
+4. Start the frontend.
+
+```bash
+cd apps/web
+npm run dev
+```
+
+5. Build and link the CLI.
+
+```bash
+cd packages/teamgraph-mcp
+npm run build
+npm link
+```
+
+6. Optional backfill for existing trusted context.
+
+```bash
+cd apps/api
+source .venv/bin/activate
+python3 scripts/backfill_graphiti.py
+```
+
+## Known Issues
+
+- Graphiti live mode depends on valid local provider credentials and the exact installed `graphiti-core` API surface.
+- Fallback mode keeps the product running, but the resulting answers are deterministic summaries rather than fully model-generated answers.
+- Slack and GitHub connectors remain stubbed and intentionally do not perform OAuth or syncing.
+- The seeded demo environment is single-org and uses static demo auth.
+
+## Next Steps
+
+- Run a full local smoke test with Neo4j plus a real provider key to validate end-to-end Graphiti ingestion and retrieval behavior.
+- Add targeted backend tests around fallback mode, approval ingestion, and API key scope enforcement.
+- Expand the graph visualization adapter if deeper Graphiti entity and relationship mapping is needed.
+- Replace demo connector stubs with real integrations in a later phase without bypassing TeamGraph safety and permission checks.
