@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Mail, MoreHorizontal } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiGet } from '@/lib/api';
 import type { TeamMember } from '@/lib/types';
 
@@ -16,14 +17,11 @@ export default function TeamPage() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center">Team Members</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">Manage access to the organization brain.</p>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Access control"
+      title="Team Members"
+      description="Postgres-backed identities now control who can reach each project brain, who can approve context, and who can manage integrations."
+    >
       <div className="border border-[var(--color-border-subtle)] rounded-xl overflow-hidden bg-[var(--color-card-base)]">
         <table className="w-full text-left text-sm">
           <thead className="bg-[var(--color-background-surface)] text-[var(--color-text-muted)] border-b border-[var(--color-border-subtle)]">
@@ -72,6 +70,6 @@ export default function TeamPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </PageShell>
   );
 }

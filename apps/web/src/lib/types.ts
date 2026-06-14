@@ -1,6 +1,9 @@
 export type HealthResponse = {
   status: string;
   service: string;
+  postgres: {
+    status: string;
+  };
   neo4j: {
     status: string;
     reason?: string;
@@ -17,6 +20,7 @@ export type HealthResponse = {
 
 export type SettingsResponse = {
   organization: string;
+  postgres_status: string;
   neo4j_status: string;
   graphiti_mode: string;
   graphiti_provider: string;
@@ -92,6 +96,14 @@ export type GraphVisualization = {
     target: string;
     label: string;
   }>;
+  timeline: Array<{
+    id: string;
+    title: string;
+    summary?: string;
+    projectName?: string;
+    sourceType?: string;
+    createdAt?: string;
+  }>;
 };
 
 export type ConnectorRecord = {
@@ -101,6 +113,10 @@ export type ConnectorRecord = {
   state: string;
   mode: string;
   todo: string;
+  auth_url?: string | null;
+  ready?: boolean;
+  connected_account?: string | null;
+  last_synced_at?: string | null;
 };
 
 export type TeamMember = {

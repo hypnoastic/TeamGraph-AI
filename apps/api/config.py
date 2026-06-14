@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     frontend_origin: str = Field(default="http://localhost:3000", alias="FRONTEND_ORIGIN")
     public_base_url: str = Field(default="http://localhost:3000", alias="PUBLIC_BASE_URL")
     api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
-    database_url: str = Field(default="sqlite:///./teamgraph.db", alias="DATABASE_URL")
+    database_url: str = Field(default="sqlite:////tmp/teamgraph.db", alias="DATABASE_URL")
     session_ttl_hours: int = Field(default=168, alias="SESSION_TTL_HOURS")
 
     neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")

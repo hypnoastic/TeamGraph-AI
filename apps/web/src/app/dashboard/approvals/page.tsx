@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiGet, apiPost } from '@/lib/api';
 import type { InboxItem } from '@/lib/types';
 
@@ -35,17 +36,18 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center">
+    <PageShell
+      eyebrow="Safety gate"
+      title="Approvals"
+      description="Review risky or ambiguous uploads before TeamGraph lets them through to Graphiti."
+    >
+      <div className="mb-2">
+        <h2 className="text-xl font-bold flex items-center">
           Approvals{' '}
           <span className="ml-3 bg-[var(--color-accent-review)]/20 text-[var(--color-accent-review)] text-sm px-2 py-0.5 rounded-full">
             {approvals.length}
           </span>
-        </h1>
-        <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-          Review risky or ambiguous context before it enters Graphiti.
-        </p>
+        </h2>
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-6">
@@ -118,6 +120,6 @@ export default function ApprovalsPage() {
           )})
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

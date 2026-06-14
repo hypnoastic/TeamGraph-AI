@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Filter } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiGet } from '@/lib/api';
 import type { InboxItem } from '@/lib/types';
 
@@ -31,16 +32,16 @@ export default function ContextInboxPage() {
   };
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Context Inbox</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">Raw uploads before and after live-brain curation.</p>
-        </div>
-        <button className="btn-secondary flex items-center">
+    <PageShell
+      eyebrow="Ingestion pipeline"
+      title="Context Inbox"
+      description="Review raw uploads, lane decisions, and Graphiti episode linkage before or after they enter the live brain."
+      actions={
+        <button className="btn-secondary flex items-center !rounded-2xl">
           <Filter size={16} className="mr-2" /> Flow
         </button>
-      </div>
+      }
+    >
 
       <div className="flex-1 overflow-y-auto space-y-4">
         {loading ? (
@@ -83,6 +84,6 @@ export default function ContextInboxPage() {
           ))
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

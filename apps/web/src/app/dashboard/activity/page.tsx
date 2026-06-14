@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Activity, Cpu, HardDrive, ShieldAlert } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiGet } from '@/lib/api';
 import type { ActivityRecord } from '@/lib/types';
 
@@ -23,12 +24,11 @@ export default function ActivityPage() {
   }, []);
 
   return (
-    <div className="h-full flex flex-col max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold flex items-center">System Activity</h1>
-        <p className="text-[var(--color-text-secondary)] text-sm mt-1">Audit logs for the TeamGraph brain infrastructure.</p>
-      </div>
-
+    <PageShell
+      eyebrow="Audit trail"
+      title="System Activity"
+      description="Review authentication events, connector actions, curation changes, and operational activity across the TeamGraph control plane."
+    >
       <div className="space-y-4">
         {activities.map((activity) => {
           const Icon = iconForType(activity.type);
@@ -53,6 +53,6 @@ export default function ActivityPage() {
           );
         })}
       </div>
-    </div>
+    </PageShell>
   );
 }

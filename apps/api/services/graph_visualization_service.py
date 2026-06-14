@@ -6,6 +6,7 @@ from database import neo4j_db
 def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
+    timeline: list[dict[str, Any]] = []
     seen_nodes: set[str] = set()
 
     records = neo4j_db.execute_query(
@@ -19,7 +20,7 @@ def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
         {"limit": limit},
     )
     if not records:
-        return {"nodes": [], "edges": []}
+        return {"nodes": [], "edges": [], "timeline": []}
 
     record = records[0]
     org = record["o"]
@@ -81,10 +82,24 @@ def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
                         "visibility": context.get("visibility"),
                         "sourceType": context.get("sourceType"),
                         "graphitiEpisodeUuid": context.get("graphitiEpisodeUuid"),
+                        "summary": context.get("summary"),
+                        "createdAt": context.get("createdAt"),
+                        "updatedAt": context.get("updatedAt"),
+                        "projectName": context.get("projectName"),
                     },
                 }
             )
             seen_nodes.add(context_id)
+        timeline.append(
+            {
+                "id": context_id,
+                "title": context.get("title", "Context"),
+                "summary": context.get("summary"),
+                "projectName": context.get("projectName"),
+                "sourceType": context.get("sourceType"),
+                "createdAt": context.get("updatedAt") or context.get("createdAt"),
+            }
+        )
 
         project_id = context.get("projectId")
         if project_id:
@@ -115,7 +130,12 @@ def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
                     "id": episode_uuid,
                     "label": f"Episode {episode_uuid[:8]}",
                     "type": "episode",
-                    "meta": {"mode": context.get("brainMode", "fallback")},
+                    "meta": {
+                        "mode": context.get("brainMode", "fallback"),
+                        "sourceType": context.get("sourceType"),
+                        "projectName": context.get("projectName"),
+                        "createdAt": context.get("updatedAt") or context.get("createdAt"),
+                    },
                 }
             )
             seen_nodes.add(episode_uuid)
@@ -129,4 +149,5 @@ def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
                 }
             )
 
-    return {"nodes": nodes, "edges": edges}
+    timeline.sort(key=lambda item: item.get("createdAt") or "", reverse=True)
+    return {"nodes": nodes, "edges": edges, "timeline": timeline[:10]}

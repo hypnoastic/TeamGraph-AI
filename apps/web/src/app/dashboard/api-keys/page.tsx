@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Copy, Key, Plus, Trash2 } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiDelete, apiGet, apiPost } from '@/lib/api';
 import type { ApiKeyRecord } from '@/lib/types';
 
@@ -45,14 +46,11 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">API Keys</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">Manage scoped MCP access for agents.</p>
-        </div>
-      </div>
-
+    <PageShell
+      eyebrow="Agent access"
+      title="API Keys"
+      description="Issue scoped credentials for MCP clients and external agents while keeping raw keys out of storage."
+    >
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-6 mb-8">
         <div className="card p-6">
           <h2 className="text-lg font-medium mb-3">Create API Key</h2>
@@ -139,6 +137,6 @@ export default function ApiKeysPage() {
           </table>
         </div>
       </div>
-    </div>
+    </PageShell>
   );
 }

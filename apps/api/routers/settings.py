@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends
 from auth.demo_auth import require_admin
 from config import settings
 from database import neo4j_db
+from postgres import engine
 from services.graphiti.service import graphiti_service
 from services.optimizer import run_optimizer
 
@@ -13,6 +14,12 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 @router.get("/")
 async def get_settings(user: dict = Depends(require_admin)):
     graphiti_health = await graphiti_service.health_check()
+    postgres_status = "ok"
+    try:
+        with engine.connect() as connection:
+            connection.exec_driver_sql("SELECT 1")
+    except Exception as exc:
+        postgres_status = f"error: {exc}"
 
     counts_query = """
     MATCH (o:Organization {id: $org_id})
@@ -52,6 +59,7 @@ async def get_settings(user: dict = Depends(require_admin)):
 
     return {
         "organization": settings.teamgraph_org_name,
+        "postgres_status": postgres_status,
         "neo4j_status": neo4j_db.health_check().get("status", "unknown"),
         "graphiti_mode": graphiti_health.mode,
         "graphiti_provider": graphiti_health.provider,

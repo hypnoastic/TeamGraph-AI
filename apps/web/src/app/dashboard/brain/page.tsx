@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Bot, Database, Network, Send, User } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiPost } from '@/lib/api';
 import type { BrainResponse } from '@/lib/types';
 
@@ -54,19 +55,14 @@ export default function BrainChatPage() {
   };
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Brain Chat</h1>
-          <p className="text-[var(--color-text-secondary)] text-sm mt-1">
-            Query the organization&apos;s Graphiti-powered live context brain.
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto space-y-6 pb-6 scrollbar-hide">
+    <PageShell
+      eyebrow="Primary workspace"
+      title="Brain Chat"
+      description="Query the organization’s Graphiti-powered live brain, inspect cited memory, and route follow-up actions back through TeamGraph."
+    >
+      <div className="flex-1 overflow-y-auto space-y-6 pb-6 scrollbar-hide min-h-[62vh]">
         {messages.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center text-[var(--color-text-muted)] space-y-4">
+          <div className="min-h-[48vh] rounded-[28px] border border-dashed border-[var(--color-border-subtle)] bg-[var(--color-card-base)] flex flex-col items-center justify-center text-[var(--color-text-muted)] space-y-4">
             <Database size={48} className="opacity-20" />
             <p>Ask about projects, decisions, handoffs, or recent team memory.</p>
             <div className="flex flex-wrap justify-center gap-2">
@@ -215,6 +211,6 @@ export default function BrainChatPage() {
           </button>
         </form>
       </div>
-    </div>
+    </PageShell>
   );
 }

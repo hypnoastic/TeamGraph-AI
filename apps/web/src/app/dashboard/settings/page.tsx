@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Zap } from 'lucide-react';
 
+import { PageShell } from '@/components/page-shell';
 import { apiGet, apiPost } from '@/lib/api';
 import type { SettingsResponse } from '@/lib/types';
 
@@ -28,11 +29,11 @@ export default function SettingsPage() {
   if (!settings) return <div className="text-[var(--color-accent-unsafe)] p-8">Failed to load settings.</div>;
 
   return (
-    <div className="h-full flex flex-col max-w-5xl mx-auto pb-12">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold flex items-center">Settings</h1>
-        <p className="text-[var(--color-text-secondary)] text-sm mt-1">Monitor the TeamGraph live brain runtime.</p>
-      </div>
+    <PageShell
+      eyebrow="Operations"
+      title="Settings"
+      description="Monitor the TeamGraph runtime across Postgres, Neo4j, Graphiti, approvals, and optimizer health."
+    >
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="card p-6">
@@ -46,6 +47,16 @@ export default function SettingsPage() {
           {settings.graphiti_reason && (
             <div className="mt-3 text-xs text-[var(--color-text-muted)]">{settings.graphiti_reason}</div>
           )}
+        </div>
+
+        <div className="card p-6">
+          <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">Postgres status</div>
+          <div className="mt-2 text-xl font-semibold text-[var(--color-text-primary)]">
+            {settings.postgres_status}
+          </div>
+          <div className="text-sm text-[var(--color-text-secondary)] mt-2">
+            Organization: {settings.organization}
+          </div>
         </div>
 
         <div className="card p-6">
@@ -93,6 +104,6 @@ export default function SettingsPage() {
           <Zap size={16} className="mr-2" /> Run Optimizer Now
         </button>
       </section>
-    </div>
+    </PageShell>
   );
 }
