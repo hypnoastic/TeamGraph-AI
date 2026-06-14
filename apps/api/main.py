@@ -6,14 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from database import neo4j_db
 from routers import (
+    activity,
     api_keys,
     approvals,
     auth,
     brain,
+    connectors,
     context,
+    graph,
     health,
     mcp,
     settings as settings_router,
+    team,
 )
 from services.graphiti.service import graphiti_service
 
@@ -43,6 +47,10 @@ app.include_router(api_keys.router)
 app.include_router(context.router)
 app.include_router(approvals.router)
 app.include_router(brain.router)
+app.include_router(graph.router)
+app.include_router(activity.router)
+app.include_router(team.router)
+app.include_router(connectors.router)
 app.include_router(settings_router.router)
 app.include_router(mcp.router)
 
