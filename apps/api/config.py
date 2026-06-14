@@ -4,12 +4,17 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+CONFIG_FILE = Path(__file__).resolve()
+APP_DIR = CONFIG_FILE.parent
+REPO_ROOT = CONFIG_FILE.parents[2] if len(CONFIG_FILE.parents) > 2 else APP_DIR
+ENV_FILE = REPO_ROOT / ".env"
+if not ENV_FILE.exists():
+    ENV_FILE = APP_DIR / ".env"
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(ROOT_DIR / ".env"),
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )
