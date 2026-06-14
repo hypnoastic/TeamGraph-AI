@@ -23,7 +23,7 @@ def ensure_neo4j_bootstrap() -> None:
         MERGE (o:Organization {id: 'org_1'})
         SET o.name = 'Acme AI Lab',
             o.domain = 'acme.local',
-            o.createdAt = coalesce(o.createdAt, datetime().toString())
+            o.createdAt = coalesce(o.createdAt, toString(datetime()))
         """,
         """
         MERGE (u1:User {id: 'usr_admin'})
@@ -152,8 +152,8 @@ def seed_demo_context() -> None:
                 c.userId = $user_id,
                 c.uploaderEmail = $uploader_email,
                 c.scopeKeys = ['org:org_1', 'org:org_1:project:' + $project_id, 'org:org_1:user:' + $user_id],
-                c.createdAt = coalesce(c.createdAt, datetime().toString()),
-                c.updatedAt = datetime().toString()
+                c.createdAt = coalesce(c.createdAt, toString(datetime())),
+                c.updatedAt = toString(datetime())
             MERGE (u)-[:OWNS_CONTEXT]->(c)
             MERGE (c)-[:BELONGS_TO]->(p)
             MERGE (p)-[:HAS_CONTEXT]->(c)
