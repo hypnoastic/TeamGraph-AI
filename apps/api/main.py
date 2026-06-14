@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,15 +26,23 @@ from services.bootstrap_service import ensure_neo4j_bootstrap
 from services.graphiti.service import graphiti_service
 from services.postgres_seed import seed_postgres
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info("Startup: creating Postgres tables")
     Base.metadata.create_all(bind=engine)
+    logger.info("Startup: seeding Postgres defaults")
     with SessionLocal() as db:
         seed_postgres(db)
+    logger.info("Startup: connecting to Neo4j")
     neo4j_db.connect()
+    logger.info("Startup: bootstrapping Neo4j graph")
     ensure_neo4j_bootstrap()
+    logger.info("Startup: initializing Graphiti")
     await graphiti_service.initialize_graphiti()
+    logger.info("Startup: complete")
     yield
     await graphiti_service.close()
     neo4j_db.close()
