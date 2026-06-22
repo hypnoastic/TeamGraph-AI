@@ -10,6 +10,17 @@ import { getApiClient } from './apiClient';
 
 const TOOL_DEFINITIONS = [
   {
+    name: 'list_projects',
+    description: 'List projects available to the authenticated TeamGraph agent.',
+    route: '/mcp/tool/list-projects',
+    method: 'get',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'get_context',
     description: 'Get live TeamGraph brain context for a query.',
     route: '/mcp/tool/get-context',
@@ -157,11 +168,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return {
       content: [{ type: 'text', text: JSON.stringify(response.data, null, 2) }],
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const apiError = error as {
+      response?: { data?: { detail?: string; message?: string } };
+      message?: string;
+    };
     const message =
-      error?.response?.data?.detail ||
-      error?.response?.data?.message ||
-      error?.message ||
+      apiError.response?.data?.detail ||
+      apiError.response?.data?.message ||
+      apiError.message ||
       'Unknown error';
     return {
       content: [{ type: 'text', text: `Error: ${message}` }],

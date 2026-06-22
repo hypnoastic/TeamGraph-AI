@@ -5,6 +5,7 @@ import {
   getContext,
   install,
   listContextSources,
+  listProjects,
   login,
   optimizeGraph,
   printUsage,
@@ -45,6 +46,11 @@ async function main() {
 
   if (command === 'list-context-sources') {
     await listContextSources();
+    return;
+  }
+
+  if (command === 'list-projects') {
+    await listProjects();
     return;
   }
 

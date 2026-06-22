@@ -45,9 +45,12 @@ export async function status() {
     const config = resolveConfig();
     const client = getApiClient();
     const response = await client.post('/mcp/validate-key');
-    console.log(JSON.stringify({ config, validation: response.data }, null, 2));
-  } catch (error: any) {
-    console.error(`Status check failed: ${error.message}`);
+    console.log(JSON.stringify({
+      config: { serverUrl: config.serverUrl, apiKey: `${config.apiKey.slice(0, 10)}...` },
+      validation: response.data,
+    }, null, 2));
+  } catch (error: unknown) {
+    console.error(`Status check failed: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
 }
@@ -68,6 +71,12 @@ export async function getContext(args: string[]) {
 export async function listContextSources() {
   const client = getApiClient();
   const response = await client.get('/mcp/tool/list-context-sources');
+  console.log(JSON.stringify(response.data, null, 2));
+}
+
+export async function listProjects() {
+  const client = getApiClient();
+  const response = await client.get('/mcp/tool/list-projects');
   console.log(JSON.stringify(response.data, null, 2));
 }
 
@@ -105,7 +114,7 @@ export function install(agent: string, apiKey: string) {
   if (agent.toLowerCase() === 'claude') {
     try {
       const configPath = getClaudeConfigPath();
-      let config: any = { mcpServers: {} };
+      let config: { mcpServers?: Record<string, unknown> } = { mcpServers: {} };
 
       if (fs.existsSync(configPath)) {
         try {
@@ -133,8 +142,8 @@ export function install(agent: string, apiKey: string) {
       console.log('Success: teamgraph-mcp successfully installed into Claude Desktop.');
       console.log(`Config updated at: ${configPath}`);
       console.log('Please restart Claude Desktop for the changes to take effect.');
-    } catch (error: any) {
-      console.error(`Failed to install for Claude: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Failed to install for Claude: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else if (agent.toLowerCase() === 'cursor') {
     console.log('\nTo install teamgraph-mcp in Cursor:');
@@ -161,7 +170,7 @@ export function uninstall(agent: string) {
         return;
       }
 
-      let config: any;
+      let config: { mcpServers?: Record<string, unknown> };
       try {
         config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
       } catch {
@@ -177,8 +186,8 @@ export function uninstall(agent: string) {
       } else {
         console.log('TeamGraph MCP was not installed in Claude Desktop. Nothing to do.');
       }
-    } catch (error: any) {
-      console.error(`Failed to uninstall for Claude: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Failed to uninstall for Claude: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else {
     console.error(`Error: Unsupported agent '${agent}'.`);
@@ -194,6 +203,7 @@ export function printUsage() {
   console.error('  teamgraph-mcp upload-context --text "<text>" --project "<name>" [--title "<name>"]');
   console.error('  teamgraph-mcp upload-context --file ./context.md --project "<name>" [--title "<name>"]');
   console.error('  teamgraph-mcp list-context-sources');
+  console.error('  teamgraph-mcp list-projects');
   console.error('  teamgraph-mcp optimize-graph');
   console.error('  teamgraph-mcp install <agent> api="<key>"');
   console.error('  teamgraph-mcp uninstall <agent>');

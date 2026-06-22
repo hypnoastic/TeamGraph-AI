@@ -3,12 +3,27 @@
   "version": "1.0.0",
   "description": "TeamGraph AI Live Brain MCP CLI",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "keywords": ["mcp", "graphiti", "neo4j", "knowledge-graph", "ai-agents"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yashkumar/TeamGraph-AI.git",
+    "directory": "packages/teamgraph-mcp"
+  },
+  "homepage": "https://github.com/yashkumar/TeamGraph-AI#readme",
+  "bugs": { "url": "https://github.com/yashkumar/TeamGraph-AI/issues" },
+  "files": ["dist", "README.md", "LICENSE"],
+  "engines": { "node": ">=20" },
   "bin": {
     "teamgraph-mcp": "./dist/index.js"
   },
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "dev": "tsc --watch",
+    "start": "node dist/index.js serve",
+    "prepack": "npm run clean && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.1",

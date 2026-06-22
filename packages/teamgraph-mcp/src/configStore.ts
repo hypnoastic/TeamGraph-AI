@@ -16,7 +16,8 @@ export function readConfig(): TeamGraphCliConfig | null {
 }
 
 export function writeConfig(config: TeamGraphCliConfig) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), { mode: 0o600 });
+  fs.chmodSync(CONFIG_PATH, 0o600);
 }
 
 export function getConfigPath() {
