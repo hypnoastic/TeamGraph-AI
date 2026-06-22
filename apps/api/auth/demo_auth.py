@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from config import settings
-from models import Project, SessionToken, User, UserProjectAccess
+from models import Organization, Project, SessionToken, User, UserProjectAccess
 from postgres import get_db
 
 
@@ -40,16 +40,18 @@ def build_user_payload(user: User, db: Session) -> dict:
         .where(UserProjectAccess.user_id == user.id)
         .order_by(Project.name.asc())
     ).all()
+    organization = db.get(Organization, user.organization_id) if user.organization_id else None
     return {
         "id": user.id,
         "email": user.email,
         "name": user.name,
         "role": user.role,
         "org_id": user.organization_id,
-        "org_name": settings.teamgraph_org_name,
+        "org_name": organization.name if organization else None,
         "project_ids": [row.id for row in project_rows],
         "project_names": [row.name for row in project_rows],
         "is_demo": user.is_demo,
+        "onboarding_required": user.organization_id is None,
     }
 
 

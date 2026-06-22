@@ -8,10 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class Neo4jClient:
-    def __init__(self, uri: str, user: str, password: str):
+    def __init__(self, uri: str, user: str, password: str, database: str = "neo4j"):
         self.uri = uri
         self.user = user
         self.password = password
+        self.database = database
         self.driver = None
 
     def connect(self) -> None:
@@ -44,6 +45,6 @@ class Neo4jClient:
             logger.error("Driver not initialized. Call connect() first.")
             return []
 
-        with self.driver.session() as session:
+        with self.driver.session(database=self.database) as session:
             result = session.run(query, parameters or {})
             return [record.data() for record in result]

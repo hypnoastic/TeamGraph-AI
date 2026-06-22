@@ -1,13 +1,23 @@
 from __future__ import annotations
 
 import uuid
+import json
 
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from config import settings
-from models import ConnectorAccount, Organization, Project, User, UserProjectAccess
+from models import (
+    ApprovalRecord,
+    ConnectorAccount,
+    ContextRecord,
+    Organization,
+    Project,
+    RawContextRecord,
+    User,
+    UserProjectAccess,
+)
 
 
 password_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
@@ -97,5 +107,109 @@ def seed_postgres(db: Session) -> None:
                     metadata_json="{}",
                 )
             )
+
+    demo_contexts = [
+        (
+            "raw_demo_architecture",
+            "ctx_demo_architecture",
+            "Architecture decision",
+            "TeamGraph uses FastAPI as the permission boundary, Postgres for the control plane, and Graphiti with Neo4j for temporal organization memory.",
+            "Architecture: TeamGraph control plane and Graphiti knowledge plane.",
+            "decision",
+        ),
+        (
+            "raw_demo_launch",
+            "ctx_demo_launch",
+            "Hackathon launch checklist",
+            "Before submission, verify Brain Chat citations, upload a safe note, approve a risky note as admin, inspect the graph, and connect the MCP CLI with a scoped API key.",
+            "Hackathon submission verification checklist.",
+            "handoff",
+        ),
+        (
+            "raw_demo_security",
+            "ctx_demo_security",
+            "Security policy",
+            "Members cannot approve risky context, private memory is visible only to its owner, API keys are stored as hashes, and external agents never access Graphiti directly.",
+            "Core TeamGraph access and ingestion safety rules.",
+            "policy",
+        ),
+    ]
+    for raw_id, context_id, title, content, summary, context_type in demo_contexts:
+        if db.get(RawContextRecord, raw_id) is None:
+            db.add(
+                RawContextRecord(
+                    id=raw_id,
+                    organization_id=org.id,
+                    project_id="proj_1",
+                    user_id="usr_demo",
+                    title=title,
+                    content=content,
+                    context_type=context_type,
+                    source_type="seed",
+                    upload_channel="seed",
+                    visibility="project",
+                    tags_json=json.dumps(["demo", "hackathon"]),
+                    approval_status="safe",
+                )
+            )
+            db.flush()
+        if db.get(ContextRecord, context_id) is None:
+            db.add(
+                ContextRecord(
+                    id=context_id,
+                    raw_context_id=raw_id,
+                    organization_id=org.id,
+                    project_id="proj_1",
+                    user_id="usr_demo",
+                    title=title,
+                    summary=summary,
+                    content=content,
+                    context_type=context_type,
+                    source_type="seed",
+                    upload_channel="seed",
+                    visibility="project",
+                    approval_status="safe",
+                    quality_score=0.95,
+                    tags_json=json.dumps(["demo", "hackathon"]),
+                    risk_tags_json="[]",
+                    graphiti_group_id=f"org:{org.id}:project:proj_1",
+                    brain_mode="fallback",
+                )
+            )
+
+    if db.get(RawContextRecord, "raw_demo_review") is None:
+        db.add(
+            RawContextRecord(
+                id="raw_demo_review",
+                organization_id=org.id,
+                project_id="proj_1",
+                user_id="usr_member",
+                title="Deployment access note",
+                content="A deployment note references a credential-shaped token and requires administrator review before ingestion.",
+                context_type="note",
+                source_type="seed",
+                upload_channel="seed",
+                visibility="project",
+                tags_json='["demo"]',
+                approval_status="pending",
+            )
+        )
+        db.flush()
+    if db.get(ApprovalRecord, "rev_demo_review") is None:
+        db.add(
+            ApprovalRecord(
+                id="rev_demo_review",
+                raw_context_id="raw_demo_review",
+                organization_id=org.id,
+                status="pending",
+                reason="Credential-shaped content requires administrator review.",
+                risk_tags_json='["possible_secret"]',
+                quality_score=0.72,
+                proposed_title="Deployment access note",
+                proposed_summary="Deployment access note pending safety review.",
+                proposed_context_type="note",
+                proposed_visibility="project",
+            )
+        )
 
     db.commit()

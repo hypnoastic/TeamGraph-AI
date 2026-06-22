@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
     database_url: str = Field(default="sqlite:////tmp/teamgraph.db", alias="DATABASE_URL")
     session_ttl_hours: int = Field(default=168, alias="SESSION_TTL_HOURS")
+    invitation_ttl_hours: int = Field(default=72, alias="INVITATION_TTL_HOURS")
+    demo_mode: bool = Field(default=False, alias="DEMO_MODE")
 
     neo4j_uri: str = Field(default="bolt://localhost:7687", alias="NEO4J_URI")
     neo4j_username: str = Field(
@@ -34,6 +36,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("NEO4J_USERNAME", "NEO4J_USER"),
     )
     neo4j_password: str = Field(default="teamgraph_demo_pass", alias="NEO4J_PASSWORD")
+    neo4j_database: str = Field(default="neo4j", alias="NEO4J_DATABASE")
 
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-2.5-flash-lite", alias="GEMINI_MODEL")

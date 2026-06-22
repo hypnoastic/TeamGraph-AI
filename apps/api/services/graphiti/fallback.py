@@ -1,4 +1,7 @@
-from database import neo4j_db
+from sqlalchemy import or_, select
+
+from models import ContextRecord, Project
+from postgres import SessionLocal
 
 from .schemas import BrainSearchResult, SearchCitation, SearchFact
 
@@ -11,83 +14,84 @@ def fallback_search(
     limit: int = 5,
     reason: str | None = None,
 ) -> BrainSearchResult:
-    clauses = [
-        "MATCH (c:Context)",
-        "OPTIONAL MATCH (c)-[:BELONGS_TO]->(p:Project)",
-        "WHERE c.status = 'trusted'",
-        "AND (toLower(c.content) CONTAINS toLower($query) OR toLower(c.title) CONTAINS toLower($query))",
-    ]
-    params = {"query": query, "limit": limit}
-
-    if project:
-        clauses.append("AND p.name = $project")
-        params["project"] = project
-
-    if user and user.get("role") != "admin":
-        clauses.append(
-            "AND (c.visibility <> 'private' OR c.userId = $user_id OR c.uploaderEmail = $user_email)"
+    if not user or not user.get("org_id"):
+        return BrainSearchResult(
+            mode="fallback",
+            provider="mock",
+            answer_context="",
+            confidence=0.0,
+            reason=reason or "Organization context is not configured.",
         )
-        params["user_id"] = user.get("id")
-        params["user_email"] = user.get("email")
 
-    query_text = "\n".join(
-        clauses
-        + [
-            "RETURN c, p",
-            "ORDER BY coalesce(c.updatedAt, c.createdAt) DESC",
-            "LIMIT $limit",
-        ]
-    )
-    records = neo4j_db.execute_query(query_text, params)
+    ignored_words = {"what", "when", "where", "which", "with", "from", "this", "that", "have", "about", "your", "team"}
+    search_terms = [
+        term.strip(".,?!:;()[]{}").lower()
+        for term in query.split()
+        if len(term.strip(".,?!:;()[]{}")) >= 3
+        and term.strip(".,?!:;()[]{}").lower() not in ignored_words
+    ]
+    search_terms = search_terms[:8] or [query]
+    text_filters = []
+    for term in search_terms:
+        pattern = f"%{term}%"
+        text_filters.extend(
+            [
+                ContextRecord.title.ilike(pattern),
+                ContextRecord.summary.ilike(pattern),
+                ContextRecord.content.ilike(pattern),
+            ]
+        )
+
+    with SessionLocal() as session:
+        statement = (
+            select(ContextRecord, Project)
+            .outerjoin(Project, ContextRecord.project_id == Project.id)
+            .where(
+                ContextRecord.organization_id == user["org_id"],
+                ContextRecord.approval_status.in_(["safe", "approved"]),
+                or_(*text_filters),
+            )
+            .order_by(ContextRecord.updated_at.desc())
+            .limit(limit)
+        )
+        if project:
+            statement = statement.where(or_(Project.id == project, Project.name == project))
+        if user.get("role") != "admin":
+            statement = statement.where(
+                or_(
+                    ContextRecord.project_id.is_(None),
+                    ContextRecord.project_id.in_(user.get("project_ids", [])),
+                    ContextRecord.user_id == user.get("id"),
+                )
+            )
+        rows = session.execute(statement).all()
 
     citations: list[SearchCitation] = []
     facts: list[SearchFact] = []
     context_parts: list[str] = []
-
-    for record in records:
-        context = record["c"]
-        project_node = record.get("p")
+    for context, project_row in rows:
         citations.append(
             SearchCitation(
-                context_id=context.get("id"),
-                graphiti_episode_uuid=context.get("graphitiEpisodeUuid"),
-                title=context.get("title", "Untitled Context"),
-                summary=context.get("summary"),
-                source_type=context.get("sourceType"),
-                project_name=project_node.get("name") if project_node else None,
-                uploader_email=context.get("uploaderEmail"),
-                created_at=context.get("createdAt"),
+                context_id=context.id,
+                graphiti_episode_uuid=context.graphiti_episode_uuid,
+                title=context.title,
+                summary=context.summary,
+                source_type=context.source_type,
+                project_name=project_row.name if project_row else None,
+                created_at=context.created_at.isoformat(),
                 score=0.5,
             )
         )
         facts.append(
             SearchFact(
-                id=context.get("id", "unknown"),
-                label=context.get("title", "Untitled Context"),
+                id=context.id,
+                label=context.title,
                 kind="context",
-                summary=context.get("summary"),
+                summary=context.summary,
             )
         )
         context_parts.append(
-            "\n".join(
-                [
-                    f"Title: {context.get('title', 'Untitled Context')}",
-                    f"Summary: {context.get('summary', 'No summary available.')}",
-                    f"Content: {context.get('content', '')}",
-                ]
-            )
-        )
-
-    if not citations:
-        return BrainSearchResult(
-            mode="fallback",
-            provider="mock",
-            answer_context="",
-            citations=[],
-            related_facts=[],
-            timeline=[],
-            confidence=0.0,
-            reason=reason or "No relevant TeamGraph fallback context found.",
+            f"Title: {context.title}\nSummary: {context.summary}\nContent: {context.content}"
         )
 
     return BrainSearchResult(
@@ -96,7 +100,6 @@ def fallback_search(
         answer_context="\n\n".join(context_parts),
         citations=citations,
         related_facts=facts,
-        timeline=[],
-        confidence=0.55,
-        reason=reason,
+        confidence=0.55 if citations else 0.0,
+        reason=reason if citations else reason or "No relevant TeamGraph context found.",
     )

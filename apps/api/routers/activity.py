@@ -9,4 +9,4 @@ router = APIRouter(prefix="/activity", tags=["activity"])
 
 @router.get("/")
 def get_activity(user: dict = Depends(get_current_user)):
-    return list_activity()
+    return list_activity(user["org_id"]) if user.get("org_id") else []

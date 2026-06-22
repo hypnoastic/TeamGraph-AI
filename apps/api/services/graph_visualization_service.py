@@ -1,153 +1,181 @@
-from typing import Any
+from __future__ import annotations
 
-from database import neo4j_db
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
+
+from models import ContextRecord, Organization, Project, User, UserProjectAccess
 
 
-def get_graph_visualization(limit: int = 80) -> dict[str, list[dict[str, Any]]]:
-    nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, Any]] = []
-    timeline: list[dict[str, Any]] = []
-    seen_nodes: set[str] = set()
-
-    records = neo4j_db.execute_query(
-        """
-        MATCH (o:Organization {id: 'org_1'})
-        OPTIONAL MATCH (o)-[:HAS_MEMBER]->(u:User)
-        OPTIONAL MATCH (o)-[:HAS_PROJECT]->(p:Project)
-        OPTIONAL MATCH (p)<-[:BELONGS_TO]-(c:Context)
-        RETURN o, collect(DISTINCT u) AS users, collect(DISTINCT p) AS projects, collect(DISTINCT c)[0..$limit] AS contexts
-        """,
-        {"limit": limit},
-    )
-    if not records:
+def get_graph_visualization(
+    db: Session,
+    user: dict,
+    *,
+    project_ref: str | None = None,
+    query: str | None = None,
+    node_types: set[str] | None = None,
+    limit: int = 100,
+) -> dict:
+    if not user.get("org_id"):
         return {"nodes": [], "edges": [], "timeline": []}
 
-    record = records[0]
-    org = record["o"]
-    org_id = org.get("id", "org_1")
-    nodes.append(
-        {
-            "id": org_id,
-            "label": org.get("name", "Organization"),
-            "type": "organization",
-            "meta": {"domain": org.get("domain")},
+    organization = db.get(Organization, user["org_id"])
+    projects_statement = select(Project).where(Project.organization_id == user["org_id"])
+    if user["role"] != "admin":
+        projects_statement = projects_statement.join(UserProjectAccess).where(
+            UserProjectAccess.user_id == user["id"]
+        )
+    projects = db.execute(projects_statement.order_by(Project.name.asc())).scalars().all()
+    allowed_project_ids = {project.id for project in projects}
+    if project_ref:
+        allowed_project_ids = {
+            project.id for project in projects if project.id == project_ref or project.name == project_ref
         }
+
+    members_statement = select(User).where(User.organization_id == user["org_id"])
+    if user["role"] != "admin":
+        members_statement = members_statement.where(User.id == user["id"])
+    members = db.execute(members_statement.order_by(User.name.asc())).scalars().all()
+    contexts_statement = (
+        select(ContextRecord)
+        .where(
+            ContextRecord.organization_id == user["org_id"],
+            ContextRecord.approval_status.in_(["safe", "approved"]),
+        )
+        .order_by(ContextRecord.updated_at.desc())
+        .limit(limit)
     )
-    seen_nodes.add(org_id)
-
-    for user in record.get("users", []):
-        if not user:
-            continue
-        user_id = user.get("id")
-        if user_id not in seen_nodes:
-            nodes.append(
-                {
-                    "id": user_id,
-                    "label": user.get("name", user.get("email")),
-                    "type": "user",
-                    "meta": {"email": user.get("email"), "role": user.get("role")},
-                }
+    if allowed_project_ids:
+        contexts_statement = contexts_statement.where(
+            or_(ContextRecord.project_id.in_(allowed_project_ids), ContextRecord.project_id.is_(None))
+        )
+    elif project_ref:
+        return {"nodes": [], "edges": [], "timeline": []}
+    if user["role"] != "admin":
+        contexts_statement = contexts_statement.where(
+            or_(ContextRecord.visibility != "private", ContextRecord.user_id == user["id"])
+        )
+    if query:
+        contexts_statement = contexts_statement.where(
+            or_(
+                ContextRecord.title.ilike(f"%{query}%"),
+                ContextRecord.summary.ilike(f"%{query}%"),
             )
-            seen_nodes.add(user_id)
-        edges.append({"id": f"edge-{org_id}-{user_id}", "source": org_id, "target": user_id, "label": "HAS_MEMBER"})
+        )
+    contexts = db.execute(contexts_statement).scalars().all()
 
-    for project in record.get("projects", []):
-        if not project:
-            continue
-        project_id = project.get("id")
-        if project_id not in seen_nodes:
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    timeline: list[dict] = []
+
+    def include(kind: str) -> bool:
+        return not node_types or kind in node_types
+
+    if organization and include("organization"):
+        nodes.append(
+            {
+                "id": organization.id,
+                "label": organization.name,
+                "type": "organization",
+                "meta": {"domain": organization.domain},
+            }
+        )
+    for project in projects:
+        if include("project"):
             nodes.append(
                 {
-                    "id": project_id,
-                    "label": project.get("name", "Project"),
+                    "id": project.id,
+                    "label": project.name,
                     "type": "project",
-                    "meta": {"visibility": project.get("visibility", "org")},
+                    "meta": {"visibility": project.visibility},
                 }
             )
-            seen_nodes.add(project_id)
-        edges.append({"id": f"edge-{org_id}-{project_id}", "source": org_id, "target": project_id, "label": "HAS_PROJECT"})
-
-    for context in record.get("contexts", []):
-        if not context:
-            continue
-        context_id = context.get("id")
-        if context_id not in seen_nodes:
+        if organization and include("organization") and include("project"):
+            edges.append(
+                {"id": f"org-project-{project.id}", "source": organization.id, "target": project.id, "label": "HAS_PROJECT"}
+            )
+    for member in members:
+        if include("user"):
             nodes.append(
                 {
-                    "id": context_id,
-                    "label": context.get("title", "Context"),
+                    "id": member.id,
+                    "label": member.name,
+                    "type": "user",
+                    "meta": {"email": member.email, "role": member.role},
+                }
+            )
+        if organization and include("organization") and include("user"):
+            edges.append(
+                {"id": f"org-user-{member.id}", "source": organization.id, "target": member.id, "label": "HAS_MEMBER"}
+            )
+    for context in contexts:
+        if include("context"):
+            nodes.append(
+                {
+                    "id": context.id,
+                    "label": context.title,
                     "type": "context",
                     "meta": {
-                        "status": context.get("approvalStatus", context.get("status")),
-                        "visibility": context.get("visibility"),
-                        "sourceType": context.get("sourceType"),
-                        "graphitiEpisodeUuid": context.get("graphitiEpisodeUuid"),
-                        "summary": context.get("summary"),
-                        "createdAt": context.get("createdAt"),
-                        "updatedAt": context.get("updatedAt"),
-                        "projectName": context.get("projectName"),
+                        "summary": context.summary,
+                        "visibility": context.visibility,
+                        "sourceType": context.source_type,
+                        "approvalStatus": context.approval_status,
+                        "brainMode": context.brain_mode,
+                        "createdAt": context.created_at.isoformat(),
                     },
                 }
             )
-            seen_nodes.add(context_id)
-        timeline.append(
-            {
-                "id": context_id,
-                "title": context.get("title", "Context"),
-                "summary": context.get("summary"),
-                "projectName": context.get("projectName"),
-                "sourceType": context.get("sourceType"),
-                "createdAt": context.get("updatedAt") or context.get("createdAt"),
-            }
-        )
-
-        project_id = context.get("projectId")
-        if project_id:
+        if context.project_id and include("context") and include("project"):
             edges.append(
                 {
-                    "id": f"edge-{context_id}-{project_id}",
-                    "source": context_id,
-                    "target": project_id,
+                    "id": f"context-project-{context.id}",
+                    "source": context.id,
+                    "target": context.project_id,
                     "label": "BELONGS_TO",
                 }
             )
-
-        user_id = context.get("userId")
-        if user_id:
+        if include("context") and include("user"):
             edges.append(
                 {
-                    "id": f"edge-{user_id}-{context_id}",
-                    "source": user_id,
-                    "target": context_id,
+                    "id": f"user-context-{context.id}",
+                    "source": context.user_id,
+                    "target": context.id,
                     "label": "OWNS_CONTEXT",
                 }
             )
-
-        episode_uuid = context.get("graphitiEpisodeUuid")
-        if episode_uuid and episode_uuid not in seen_nodes:
-            nodes.append(
-                {
-                    "id": episode_uuid,
-                    "label": f"Episode {episode_uuid[:8]}",
-                    "type": "episode",
-                    "meta": {
-                        "mode": context.get("brainMode", "fallback"),
-                        "sourceType": context.get("sourceType"),
-                        "projectName": context.get("projectName"),
-                        "createdAt": context.get("updatedAt") or context.get("createdAt"),
-                    },
-                }
-            )
-            seen_nodes.add(episode_uuid)
-        if episode_uuid:
-            edges.append(
-                {
-                    "id": f"edge-{context_id}-{episode_uuid}",
-                    "source": context_id,
-                    "target": episode_uuid,
-                    "label": "INGESTED_AS",
-                }
-            )
-
-    timeline.sort(key=lambda item: item.get("createdAt") or "", reverse=True)
-    return {"nodes": nodes, "edges": edges, "timeline": timeline[:10]}
+        if context.graphiti_episode_uuid:
+            if include("episode"):
+                nodes.append(
+                    {
+                        "id": context.graphiti_episode_uuid,
+                        "label": context.title,
+                        "type": "episode",
+                        "meta": {
+                            "groupId": context.graphiti_group_id,
+                            "mode": context.brain_mode,
+                            "createdAt": context.created_at.isoformat(),
+                        },
+                    }
+                )
+            if include("context") and include("episode"):
+                edges.append(
+                    {
+                        "id": f"context-episode-{context.id}",
+                        "source": context.id,
+                        "target": context.graphiti_episode_uuid,
+                        "label": "INGESTED_AS",
+                    }
+                )
+        timeline.append(
+            {
+                "id": context.id,
+                "title": context.title,
+                "summary": context.summary,
+                "projectName": next(
+                    (project.name for project in projects if project.id == context.project_id),
+                    None,
+                ),
+                "sourceType": context.source_type,
+                "createdAt": context.updated_at.isoformat(),
+            }
+        )
+    return {"nodes": nodes, "edges": edges, "timeline": timeline[:12]}

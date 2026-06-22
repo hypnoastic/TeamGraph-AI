@@ -79,6 +79,7 @@ class GraphitiService:
         content: str,
         metadata: EpisodeMetadata,
         summary: str | None = None,
+        group_id: str | None = None,
     ) -> EpisodeIngestionResult:
         if self.bundle is None or self.health.mode != "live":
             return EpisodeIngestionResult(
@@ -93,21 +94,35 @@ class GraphitiService:
             content=content,
             metadata=metadata,
             summary=summary,
-            group_id=self.health.group_id,
+            group_id=group_id or self.health.group_id,
         )
 
-        result = await self.bundle.graphiti.add_episode(
-            source=self.bundle.episode_type.text,
-            **payload,
-        )
-        episode_uuid = getattr(getattr(result, "episode", None), "uuid", None)
+        try:
+            result = await self.bundle.graphiti.add_episode(
+                source=self.bundle.episode_type.text,
+                **payload,
+            )
+            episode_uuid = getattr(getattr(result, "episode", None), "uuid", None)
+        except Exception as exc:
+            logger.exception("Graphiti episode ingestion failed")
+            self.health = self.health.model_copy(
+                update={"mode": "fallback", "status": "degraded", "reason": str(exc)}
+            )
+            return EpisodeIngestionResult(
+                mode="fallback",
+                provider=self.health.provider,
+                status="skipped",
+                reason=str(exc),
+                group_id=group_id or self.health.group_id,
+                metadata=metadata.model_dump(),
+            )
 
         return EpisodeIngestionResult(
             mode="live",
             provider=self.health.provider,
             status="ingested",
             episode_uuid=episode_uuid,
-            group_id=self.health.group_id,
+            group_id=group_id or self.health.group_id,
             metadata=metadata.model_dump(),
         )
 
@@ -166,7 +181,11 @@ class GraphitiService:
             return await self.fallback_search(query, project=project, user=user, limit=limit)
 
         try:
-            results = await self.bundle.graphiti.search_(query)
+            group_ids = self._allowed_group_ids(project=project, user=user)
+            try:
+                results = await self.bundle.graphiti.search_(query, group_ids=group_ids)
+            except TypeError:
+                results = await self.bundle.graphiti.search_(query)
             normalized = normalize_search_results(
                 results,
                 provider=self.health.provider,
@@ -225,6 +244,25 @@ class GraphitiService:
             limit=limit,
             reason=reason or self.health.reason,
         )
+
+    def _allowed_group_ids(self, *, project: str | None, user: dict | None) -> list[str]:
+        if not user or not user.get("org_id"):
+            return [self.health.group_id]
+        org_id = user["org_id"]
+        group_ids = [f"org:{org_id}"]
+        if project:
+            project_ids = user.get("project_ids", [])
+            project_names = user.get("project_names", [])
+            if project in project_ids:
+                group_ids.append(f"org:{org_id}:project:{project}")
+            elif project in project_names:
+                index = project_names.index(project)
+                if index < len(project_ids):
+                    group_ids.append(f"org:{org_id}:project:{project_ids[index]}")
+        else:
+            group_ids.extend(f"org:{org_id}:project:{project_id}" for project_id in user.get("project_ids", []))
+        group_ids.append(f"org:{org_id}:user:{user.get('id')}")
+        return group_ids
 
 
 graphiti_service = GraphitiService()

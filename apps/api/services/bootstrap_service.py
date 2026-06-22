@@ -10,13 +10,16 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 SCHEMA_FILE = ROOT_DIR / "graph" / "schema.cypher"
 
 
-def ensure_neo4j_bootstrap() -> None:
+def ensure_neo4j_bootstrap(seed_demo: bool = False) -> None:
     if SCHEMA_FILE.exists():
         schema_queries = SCHEMA_FILE.read_text(encoding="utf-8").split(";")
         for query in schema_queries:
             statement = query.strip()
             if statement:
                 neo4j_db.execute_query(statement)
+
+    if not seed_demo:
+        return
 
     seed_queries = [
         """

@@ -8,8 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth.demo_auth import build_user_payload, create_session, get_current_user
-from config import settings
-from models import Organization, User, UserProjectAccess
+from models import SessionToken, User
 from postgres import get_db
 from services.activity_service import record_activity
 from services.postgres_seed import hash_password, verify_password
@@ -40,13 +39,9 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if existing_user is not None:
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
-    organization = db.get(Organization, settings.teamgraph_org_id)
-    if organization is None:
-        raise HTTPException(status_code=500, detail="Default organization is not initialized.")
-
     user = User(
         id=f"usr_{uuid.uuid4().hex[:12]}",
-        organization_id=organization.id,
+        organization_id=None,
         email=request.email,
         name=request.name,
         role="member",
@@ -55,12 +50,6 @@ def signup(request: SignupRequest, db: Session = Depends(get_db)):
     )
     db.add(user)
     db.flush()
-
-    default_project_access = db.execute(
-        select(UserProjectAccess).where(UserProjectAccess.user_id == "usr_member")
-    ).scalars().all()
-    for access in default_project_access:
-        db.add(UserProjectAccess(user_id=user.id, project_id=access.project_id))
 
     db.commit()
     db.refresh(user)
@@ -100,3 +89,15 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me")
 def me(user: dict = Depends(get_current_user)):
     return user
+
+
+@router.post("/logout")
+def logout(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    sessions = db.execute(select(SessionToken).where(SessionToken.user_id == user["id"])).scalars().all()
+    for session in sessions:
+        db.delete(session)
+    db.commit()
+    return {"status": "logged_out"}

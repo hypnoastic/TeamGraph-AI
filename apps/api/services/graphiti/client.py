@@ -21,7 +21,15 @@ def create_graphiti_client(runtime_config: GraphitiRuntimeConfig) -> GraphitiCli
     _disable_graphiti_telemetry()
 
     from graphiti_core import Graphiti
+    from graphiti_core.driver.neo4j_driver import Neo4jDriver
     from graphiti_core.nodes import EpisodeType
+
+    graph_driver = Neo4jDriver(
+        settings.neo4j_uri,
+        settings.neo4j_username,
+        settings.neo4j_password,
+        database=settings.neo4j_database,
+    )
 
     if runtime_config.provider == "gemini":
         from graphiti_core.cross_encoder.gemini_reranker_client import GeminiRerankerClient
@@ -34,9 +42,7 @@ def create_graphiti_client(runtime_config: GraphitiRuntimeConfig) -> GraphitiCli
         )
 
         graphiti = Graphiti(
-            settings.neo4j_uri,
-            settings.neo4j_username,
-            settings.neo4j_password,
+            graph_driver=graph_driver,
             llm_client=GeminiClient(config=llm_config),
             embedder=GeminiEmbedder(
                 config=GeminiEmbedderConfig(
@@ -62,9 +68,7 @@ def create_graphiti_client(runtime_config: GraphitiRuntimeConfig) -> GraphitiCli
         )
         llm_client = OpenAIGenericClient(config=llm_config)
         graphiti = Graphiti(
-            settings.neo4j_uri,
-            settings.neo4j_username,
-            settings.neo4j_password,
+            graph_driver=graph_driver,
             llm_client=llm_client,
             embedder=OpenAIEmbedder(
                 config=OpenAIEmbedderConfig(

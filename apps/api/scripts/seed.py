@@ -16,7 +16,7 @@ def seed_all() -> None:
         seed_postgres(db)
 
     neo4j_db.connect()
-    ensure_neo4j_bootstrap()
+    ensure_neo4j_bootstrap(seed_demo=True)
     neo4j_db.close()
 
 

@@ -53,10 +53,13 @@ def record_activity(
             session.close()
 
 
-def list_activity(limit: int = 50) -> list[dict[str, Any]]:
+def list_activity(organization_id: str, limit: int = 50) -> list[dict[str, Any]]:
     with SessionLocal() as session:
         events = session.execute(
-            select(ActivityRecord).order_by(ActivityRecord.created_at.desc()).limit(limit)
+            select(ActivityRecord)
+            .where(ActivityRecord.organization_id == organization_id)
+            .order_by(ActivityRecord.created_at.desc())
+            .limit(limit)
         ).scalars().all()
         return [
             {

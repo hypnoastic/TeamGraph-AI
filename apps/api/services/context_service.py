@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import json
 import uuid
@@ -5,540 +7,470 @@ from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
-from config import settings
 from database import neo4j_db
+from models import ApprovalRecord, ContextRecord, Project, RawContextRecord, User
 from services.activity_service import record_activity
 from services.curator.graph_harness import curate_context
-from services.graphiti.service import graphiti_service
 from services.graphiti.schemas import EpisodeMetadata
-from services.team_service import get_user_project_names, user_can_access_project
+from services.graphiti.service import graphiti_service
+from services.team_service import user_can_access_project
 
 
 class UploadContextRequest(BaseModel):
-    title: str
-    content: str
+    title: str = Field(min_length=2, max_length=255)
+    content: str = Field(min_length=1, max_length=200_000)
     project: str | None = None
-    type: str = "note"
-    visibility: str = "project"
+    type: str = Field(default="note", max_length=64)
+    visibility: str = Field(default="project", pattern="^(org|project|private)$")
     source: str = "api"
-    sourceType: str = "mcp_upload"
-    tags: list[str] = Field(default_factory=list)
-    upload_channel: str = "ui"
+    sourceType: str = "ui_upload"
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    upload_channel: str = Field(default="ui", pattern="^(ui|mcp|connector_dummy|seed)$")
 
 
-def _utcnow() -> str:
-    return datetime.datetime.utcnow().isoformat()
-
-
-def _lookup_project(project_name: str | None) -> dict[str, Any] | None:
-    if not project_name:
+def _project_for_request(db: Session, project_ref: str | None, user: dict) -> Project | None:
+    if not project_ref:
         return None
-    query = """
-    MATCH (p:Project {name: $project_name})
-    RETURN p
-    LIMIT 1
-    """
-    results = neo4j_db.execute_query(query, {"project_name": project_name})
-    if not results:
-        return None
-    return results[0]["p"]
-
-
-def _resolve_project_name(requested_project: str | None, user: dict) -> str | None:
-    project_name = requested_project or settings.teamgraph_default_project
-    if project_name and not user_can_access_project(user, project_name):
+    project = db.execute(
+        select(Project).where(
+            Project.organization_id == user["org_id"],
+            or_(Project.id == project_ref, Project.name == project_ref),
+        )
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    if not user_can_access_project(user, project.name):
         raise HTTPException(status_code=403, detail="You do not have access to that project.")
-    return project_name
+    return project
 
 
-def _build_scope_keys(org_id: str, project_id: str | None, user_id: str | None) -> list[str]:
-    scope_keys = [f"org:{org_id}"]
+def _group_id(organization_id: str, project_id: str | None, user_id: str, visibility: str) -> str:
+    if visibility == "private":
+        return f"org:{organization_id}:user:{user_id}"
     if project_id:
-        scope_keys.append(f"org:{org_id}:project:{project_id}")
-    if user_id:
-        scope_keys.append(f"org:{org_id}:user:{user_id}")
-    return scope_keys
+        return f"org:{organization_id}:project:{project_id}"
+    return f"org:{organization_id}"
 
 
-def _create_raw_context(request: UploadContextRequest, user: dict, project_name: str | None) -> tuple[str, str]:
-    raw_id = f"raw_{uuid.uuid4().hex[:12]}"
-    now = _utcnow()
-    query = """
-    MATCH (u:User {id: $user_id})
-    CREATE (r:RawContext {
-        id: $raw_id,
-        title: $title,
-        content: $content,
-        source: $source,
-        sourceType: $source_type,
-        contextType: $context_type,
-        visibilityRequested: $visibility,
-        projectRequested: $project_name,
-        uploadChannel: $upload_channel,
-        tags: $tags,
-        uploaderEmail: $uploader_email,
-        userId: $user_id,
-        organizationId: $organization_id,
-        approvalStatus: 'pending',
-        createdAt: $now,
-        updatedAt: $now
-    })
-    MERGE (u)-[:UPLOADED]->(r)
-    RETURN r
-    """
-    neo4j_db.execute_query(
-        query,
+def _serialize_raw(raw: RawContextRecord, project: Project | None) -> dict[str, Any]:
+    return {
+        "id": raw.id,
+        "title": raw.title,
+        "content": raw.content,
+        "sourceType": raw.source_type,
+        "contextType": raw.context_type,
+        "visibilityRequested": raw.visibility,
+        "projectRequested": project.name if project else None,
+        "projectId": raw.project_id,
+        "uploadChannel": raw.upload_channel,
+        "tags": json.loads(raw.tags_json),
+        "userId": raw.user_id,
+        "organizationId": raw.organization_id,
+        "approvalStatus": raw.approval_status,
+        "createdAt": raw.created_at.isoformat(),
+        "updatedAt": raw.updated_at.isoformat(),
+    }
+
+
+def _serialize_context(context: ContextRecord, project: Project | None) -> dict[str, Any]:
+    return {
+        "id": context.id,
+        "title": context.title,
+        "summary": context.summary,
+        "content": context.content,
+        "type": context.context_type,
+        "visibility": context.visibility,
+        "approvalStatus": context.approval_status,
+        "qualityScore": context.quality_score,
+        "graphitiEpisodeUuid": context.graphiti_episode_uuid,
+        "graphitiGroupId": context.graphiti_group_id,
+        "brainMode": context.brain_mode,
+        "sourceType": context.source_type,
+        "uploadChannel": context.upload_channel,
+        "tags": json.loads(context.tags_json),
+        "riskTags": json.loads(context.risk_tags_json),
+        "projectId": context.project_id,
+        "projectName": project.name if project else None,
+        "userId": context.user_id,
+        "createdAt": context.created_at.isoformat(),
+        "updatedAt": context.updated_at.isoformat(),
+    }
+
+
+def _serialize_approval(approval: ApprovalRecord) -> dict[str, Any]:
+    return {
+        "id": approval.id,
+        "status": approval.status,
+        "reason": approval.reason,
+        "riskTags": json.loads(approval.risk_tags_json),
+        "qualityScore": approval.quality_score,
+        "proposedTitle": approval.proposed_title,
+        "proposedSummary": approval.proposed_summary,
+        "proposedContextType": approval.proposed_context_type,
+        "proposedVisibility": approval.proposed_visibility,
+        "createdAt": approval.created_at.isoformat(),
+        "updatedAt": approval.updated_at.isoformat(),
+    }
+
+
+def _mirror_context_to_neo4j(
+    raw: RawContextRecord,
+    context: ContextRecord,
+    project: Project | None,
+    user: dict,
+) -> None:
+    try:
+        neo4j_db.execute_query(
+        """
+        MERGE (o:Organization {id: $org_id})
+        SET o.name = $org_name
+        MERGE (u:User {id: $user_id})
+        SET u.email = $email, u.name = $user_name, u.role = $role
+        MERGE (r:RawContext {id: $raw_id})
+        SET r.title = $raw_title, r.content = $content, r.organizationId = $org_id,
+            r.userId = $user_id, r.projectRequested = $project_name,
+            r.visibilityRequested = $visibility, r.approvalStatus = $approval_status,
+            r.sourceType = $source_type, r.uploadChannel = $upload_channel,
+            r.createdAt = $created_at, r.updatedAt = $updated_at
+        MERGE (c:Context {id: $context_id})
+        SET c.title = $title, c.summary = $summary, c.content = $content,
+            c.type = $context_type, c.visibility = $visibility,
+            c.status = 'trusted', c.approvalStatus = $approval_status,
+            c.qualityScore = $quality_score, c.graphitiEpisodeUuid = $episode_uuid,
+            c.graphitiGroupId = $group_id, c.brainMode = $brain_mode,
+            c.sourceType = $source_type, c.uploadChannel = $upload_channel,
+            c.organizationId = $org_id, c.projectId = $project_id,
+            c.projectName = $project_name, c.userId = $user_id,
+            c.createdAt = $created_at, c.updatedAt = $updated_at
+        MERGE (o)-[:HAS_MEMBER]->(u)
+        MERGE (u)-[:UPLOADED]->(r)
+        MERGE (r)-[:CURATED_INTO]->(c)
+        MERGE (u)-[:OWNS_CONTEXT]->(c)
+        WITH o, c
+        OPTIONAL MATCH (p:Project {id: $project_id})
+        FOREACH (_ IN CASE WHEN p IS NULL THEN [] ELSE [1] END |
+            MERGE (o)-[:HAS_PROJECT]->(p)
+            MERGE (c)-[:BELONGS_TO]->(p)
+        )
+        """,
         {
-            "raw_id": raw_id,
-            "title": request.title,
-            "content": request.content,
-            "source": request.source,
-            "source_type": request.sourceType,
-            "context_type": request.type,
-            "visibility": request.visibility,
-            "project_name": project_name,
-            "upload_channel": request.upload_channel,
-            "tags": request.tags,
-            "uploader_email": user["email"],
-            "user_id": user["id"],
-            "organization_id": user["org_id"],
-            "now": now,
-        },
-    )
-    return raw_id, now
-
-
-def _create_curator_run(raw_id: str, curator_output, decision: str) -> str:
-    run_id = f"run_{uuid.uuid4().hex[:12]}"
-    now = _utcnow()
-    query = """
-    MATCH (r:RawContext {id: $raw_id})
-    CREATE (c:CuratorRun {
-        id: $run_id,
-        mode: 'auto',
-        laneDecision: $lane,
-        confidence: $confidence,
-        createdAt: $now
-    })
-    MERGE (r)-[:ANALYZED_BY]->(c)
-    """
-    neo4j_db.execute_query(
-        query,
-        {
-            "raw_id": raw_id,
-            "run_id": run_id,
-            "lane": decision,
-            "confidence": curator_output.quality.score,
-            "now": now,
-        },
-    )
-    return run_id
+            "org_id": raw.organization_id,
+            "org_name": user.get("org_name") or "Organization",
+            "user_id": raw.user_id,
+            "email": user.get("email"),
+            "user_name": user.get("name") or user.get("email"),
+            "role": user.get("role", "member"),
+            "raw_id": raw.id,
+            "raw_title": raw.title,
+            "context_id": context.id,
+            "title": context.title,
+            "summary": context.summary,
+            "content": context.content,
+            "context_type": context.context_type,
+            "visibility": context.visibility,
+            "approval_status": context.approval_status,
+            "quality_score": context.quality_score,
+            "episode_uuid": context.graphiti_episode_uuid,
+            "group_id": context.graphiti_group_id,
+            "brain_mode": context.brain_mode,
+            "source_type": context.source_type,
+            "upload_channel": context.upload_channel,
+            "project_id": context.project_id,
+            "project_name": project.name if project else None,
+            "created_at": context.created_at.isoformat(),
+            "updated_at": context.updated_at.isoformat(),
+            },
+        )
+    except Exception:
+        # Upload and approval flows remain available when Neo4j is temporarily down.
+        pass
 
 
 async def _materialize_context(
     *,
-    raw_id: str,
-    raw_title: str,
-    raw_content: str,
-    curator_output,
+    db: Session,
+    raw: RawContextRecord,
+    project: Project | None,
+    curator_output: Any,
     user: dict,
-    now: str,
-    project_name: str | None,
-    relation_type: str,
     approval_status: str,
-    upload_channel: str,
-    source_type: str,
-    tags: list[str],
-) -> dict[str, Any]:
-    project = _lookup_project(project_name)
-    project_id = project.get("id") if project else None
-    project_name_resolved = project.get("name") if project else project_name
+) -> ContextRecord:
     context_id = f"ctx_{uuid.uuid4().hex[:12]}"
-
+    group_id = _group_id(raw.organization_id, raw.project_id, raw.user_id, curator_output.classification.suggested_visibility)
     metadata = EpisodeMetadata(
-        raw_context_id=raw_id,
+        raw_context_id=raw.id,
         context_id=context_id,
-        organization_id=user["org_id"],
+        organization_id=raw.organization_id,
         organization_name=user.get("org_name"),
-        project_id=project_id,
-        project_name=project_name_resolved,
-        user_id=user["id"],
-        uploader_email=user["email"],
-        source_type=source_type,
+        project_id=raw.project_id,
+        project_name=project.name if project else None,
+        user_id=raw.user_id,
+        uploader_email=user.get("email"),
+        source_type=raw.source_type,
         context_type=curator_output.classification.context_type,
         visibility=curator_output.classification.suggested_visibility,
-        tags=tags or curator_output.classification.suggested_tags,
-        upload_channel=upload_channel,
+        tags=json.loads(raw.tags_json) or curator_output.classification.suggested_tags,
+        upload_channel=raw.upload_channel,
         approval_status=approval_status,
-        created_at=datetime.datetime.fromisoformat(now),
-        scope_keys=_build_scope_keys(user["org_id"], project_id, user["id"]),
+        created_at=raw.created_at,
+        scope_keys=[group_id],
     )
-
     graphiti_result = await graphiti_service.add_episode_for_context(
         title=curator_output.classification.canonical_title,
-        content=raw_content,
+        content=raw.content,
         metadata=metadata,
         summary=curator_output.classification.summary,
+        group_id=group_id,
     )
+    context = ContextRecord(
+        id=context_id,
+        raw_context_id=raw.id,
+        organization_id=raw.organization_id,
+        project_id=raw.project_id,
+        user_id=raw.user_id,
+        title=curator_output.classification.canonical_title,
+        summary=curator_output.classification.summary,
+        content=raw.content,
+        context_type=curator_output.classification.context_type,
+        source_type=raw.source_type,
+        upload_channel=raw.upload_channel,
+        visibility=curator_output.classification.suggested_visibility,
+        approval_status=approval_status,
+        quality_score=curator_output.quality.score,
+        tags_json=json.dumps(metadata.tags),
+        risk_tags_json=json.dumps(curator_output.safety.risk_tags),
+        graphiti_episode_uuid=graphiti_result.episode_uuid,
+        graphiti_group_id=group_id,
+        brain_mode=graphiti_result.mode,
+    )
+    raw.approval_status = approval_status
+    db.add(context)
+    db.commit()
+    db.refresh(context)
+    _mirror_context_to_neo4j(raw, context, project, user)
+    return context
 
-    query = f"""
-    MATCH (r:RawContext {{id: $raw_id}})
-    MATCH (u:User {{id: $user_id}})
-    OPTIONAL MATCH (p:Project {{name: $project_name}})
-    CREATE (c:Context {{
-        id: $context_id,
-        title: $title,
-        type: $context_type,
-        summary: $summary,
-        content: $content,
-        visibility: $visibility,
-        qualityScore: $quality_score,
-        status: 'trusted',
-        approvalStatus: $approval_status,
-        graphitiEpisodeUuid: $graphiti_episode_uuid,
-        brainMode: $brain_mode,
-        sourceType: $source_type,
-        uploadChannel: $upload_channel,
-        tags: $tags,
-        riskTags: $risk_tags,
-        organizationId: $organization_id,
-        projectId: $project_id,
-        projectName: $project_name,
-        userId: $user_id,
-        uploaderEmail: $uploader_email,
-        scopeKeys: $scope_keys,
-        createdAt: $now,
-        updatedAt: $now
-    }})
-    MERGE (r)-[:{relation_type}]->(c)
-    MERGE (u)-[:OWNS_CONTEXT]->(c)
-    FOREACH (_ IN CASE WHEN p IS NULL THEN [] ELSE [1] END |
-        MERGE (c)-[:BELONGS_TO]->(p)
-        MERGE (p)-[:HAS_CONTEXT]->(c)
+
+async def process_upload(request: UploadContextRequest, user: dict, db: Session):
+    if not user.get("org_id"):
+        raise HTTPException(status_code=409, detail="Complete organization setup first.")
+    project = _project_for_request(db, request.project, user)
+    if request.visibility == "project" and project is None:
+        raise HTTPException(status_code=400, detail="Project visibility requires a project.")
+
+    account = db.get(User, user["id"])
+    if account is None:
+        raise HTTPException(status_code=404, detail="User not found.")
+    raw = RawContextRecord(
+        id=f"raw_{uuid.uuid4().hex[:12]}",
+        organization_id=user["org_id"],
+        project_id=project.id if project else None,
+        user_id=user["id"],
+        title=request.title.strip(),
+        content=request.content.strip(),
+        context_type=request.type,
+        source_type=request.sourceType,
+        upload_channel=request.upload_channel,
+        visibility=request.visibility,
+        tags_json=json.dumps(request.tags),
     )
-    SET r.approvalStatus = $approval_status, r.updatedAt = $now
-    RETURN c
-    """
-    result = neo4j_db.execute_query(
-        query,
+    db.add(raw)
+    db.commit()
+    db.refresh(raw)
+
+    curator_output = curate_context(
         {
-            "raw_id": raw_id,
-            "user_id": user["id"],
-            "project_name": project_name_resolved,
-            "context_id": context_id,
-            "title": curator_output.classification.canonical_title,
-            "context_type": curator_output.classification.context_type,
-            "summary": curator_output.classification.summary,
-            "content": raw_content,
-            "visibility": curator_output.classification.suggested_visibility,
-            "quality_score": curator_output.quality.score,
-            "approval_status": approval_status,
-            "graphiti_episode_uuid": graphiti_result.episode_uuid,
-            "brain_mode": graphiti_result.mode,
-            "source_type": source_type,
-            "upload_channel": upload_channel,
-            "tags": metadata.tags,
-            "risk_tags": curator_output.safety.risk_tags,
-            "organization_id": user["org_id"],
-            "project_id": project_id,
-            "uploader_email": user["email"],
-            "scope_keys": metadata.scope_keys,
-            "now": now,
-        },
+            "raw_context_id": raw.id,
+            "uploaded_by": user["email"],
+            "project": project.name if project else None,
+            "visibility_requested": request.visibility,
+            "content": raw.content,
+            "title": raw.title,
+            "type": raw.context_type,
+            "tags": request.tags,
+        }
     )
-    context_node = result[0]["c"] if result else {}
-    return {
-        "context": context_node,
-        "context_id": context_id,
-        "graphiti": graphiti_result.model_dump(),
-        "project_name": project_name_resolved,
-        "project_id": project_id,
-    }
-
-
-def _queue_review_item(
-    *,
-    raw_id: str,
-    curator_output,
-    project_name: str | None,
-    request: UploadContextRequest,
-    status: str,
-    now: str,
-) -> str:
-    review_id = f"rev_{uuid.uuid4().hex[:12]}"
-    query = """
-    MATCH (r:RawContext {id: $raw_id})
-    CREATE (ri:ReviewItem {
-        id: $review_id,
-        status: $status,
-        reason: $reason,
-        riskTags: $risk_tags,
-        qualityScore: $quality_score,
-        proposedProject: $project_name,
-        proposedVisibility: $visibility,
-        proposedSummary: $summary,
-        proposedTitle: $title,
-        proposedContextType: $context_type,
-        sourceType: $source_type,
-        uploadChannel: $upload_channel,
-        tags: $tags,
-        createdAt: $now,
-        updatedAt: $now
-    })
-    MERGE (r)-[:QUEUED_AS]->(ri)
-    SET r.approvalStatus = $status, r.updatedAt = $now
-    RETURN ri
-    """
-    neo4j_db.execute_query(
-        query,
-        {
-            "raw_id": raw_id,
-            "review_id": review_id,
-            "status": status,
-            "reason": curator_output.lane.reason,
-            "risk_tags": curator_output.safety.risk_tags,
-            "quality_score": curator_output.quality.score,
-            "project_name": project_name,
-            "visibility": curator_output.classification.suggested_visibility,
-            "summary": curator_output.classification.summary,
-            "title": curator_output.classification.canonical_title,
-            "context_type": curator_output.classification.context_type,
-            "source_type": request.sourceType,
-            "upload_channel": request.upload_channel,
-            "tags": request.tags or curator_output.classification.suggested_tags,
-            "now": now,
-        },
-    )
-    return review_id
-
-
-async def process_upload(request: UploadContextRequest, user: dict):
-    project_name = _resolve_project_name(request.project, user)
-    raw_id, now = _create_raw_context(request, user, project_name)
-
-    curator_input = {
-        "raw_context_id": raw_id,
-        "uploaded_by": user["email"],
-        "project": project_name,
-        "visibility_requested": request.visibility,
-        "content": request.content,
-        "title": request.title,
-        "type": request.type,
-        "tags": request.tags,
-    }
-    curator_output = curate_context(curator_input)
     decision = curator_output.lane.decision
-    _create_curator_run(raw_id, curator_output, decision)
-
     if decision == "auto_curate":
-        context_result = await _materialize_context(
-            raw_id=raw_id,
-            raw_title=request.title,
-            raw_content=request.content,
+        context = await _materialize_context(
+            db=db,
+            raw=raw,
+            project=project,
             curator_output=curator_output,
             user=user,
-            now=now,
-            project_name=project_name,
-            relation_type="CURATED_INTO",
             approval_status="safe",
-            upload_channel=request.upload_channel,
-            source_type=request.sourceType,
-            tags=request.tags,
         )
         record_activity(
-            event_type="context_ingested",
-            title="Context auto-curated",
-            description=f"{request.title} was ingested into the TeamGraph live brain.",
+            event_type="context.ingested",
+            title="Context ingested",
+            description=raw.title,
             actor=user,
-            metadata={"raw_id": raw_id, "context_id": context_result["context_id"]},
+            metadata={"raw_id": raw.id, "context_id": context.id},
+            db=db,
         )
-        return {
-            "status": "success",
-            "raw_id": raw_id,
-            "context_id": context_result["context_id"],
-            "decision": "auto_curate",
-            "reason": curator_output.lane.reason,
-            "graphiti": context_result["graphiti"],
-        }
+        return {"status": "success", "decision": "auto_curate", "raw_id": raw.id, "context_id": context.id}
 
-    if decision == "review":
-        review_id = _queue_review_item(
-            raw_id=raw_id,
-            curator_output=curator_output,
-            project_name=project_name,
-            request=request,
-            status="pending",
-            now=now,
-        )
-        record_activity(
-            event_type="context_review",
-            title="Context queued for approval",
-            description=f"{request.title} requires admin review before entering the brain.",
-            actor=user,
-            metadata={"raw_id": raw_id, "review_id": review_id},
-        )
-        return {
-            "status": "success",
-            "raw_id": raw_id,
-            "review_id": review_id,
-            "decision": "review",
-            "reason": curator_output.lane.reason,
-        }
-
-    review_id = _queue_review_item(
-        raw_id=raw_id,
-        curator_output=curator_output,
-        project_name=project_name,
-        request=request,
-        status="quarantined",
-        now=now,
+    approval = ApprovalRecord(
+        id=f"rev_{uuid.uuid4().hex[:12]}",
+        raw_context_id=raw.id,
+        organization_id=raw.organization_id,
+        status="pending" if decision == "review" else "quarantined",
+        reason=curator_output.lane.reason,
+        risk_tags_json=json.dumps(curator_output.safety.risk_tags),
+        quality_score=curator_output.quality.score,
+        proposed_title=curator_output.classification.canonical_title,
+        proposed_summary=curator_output.classification.summary,
+        proposed_context_type=curator_output.classification.context_type,
+        proposed_visibility=curator_output.classification.suggested_visibility,
     )
+    raw.approval_status = approval.status
+    db.add(approval)
+    db.commit()
     record_activity(
-        event_type="context_quarantined",
-        title="Context quarantined",
-        description=f"{request.title} was quarantined and blocked from Graphiti ingestion.",
+        event_type=f"context.{approval.status}",
+        title="Context queued" if approval.status == "pending" else "Context quarantined",
+        description=raw.title,
         actor=user,
-        metadata={"raw_id": raw_id, "review_id": review_id},
+        metadata={"raw_id": raw.id, "review_id": approval.id},
+        db=db,
     )
     return {
         "status": "success",
-        "raw_id": raw_id,
-        "review_id": review_id,
-        "decision": "quarantine",
-        "reason": curator_output.lane.reason,
+        "decision": "review" if approval.status == "pending" else "quarantine",
+        "raw_id": raw.id,
+        "review_id": approval.id,
+        "reason": approval.reason,
     }
 
 
-def list_inbox(user: dict) -> list[dict[str, Any]]:
-    allowed_projects = get_user_project_names(user)
-    query = """
-    MATCH (r:RawContext)
-    OPTIONAL MATCH (r)-[:CURATED_INTO|APPROVED_AS]->(c:Context)
-    OPTIONAL MATCH (r)-[:QUEUED_AS]->(ri:ReviewItem)
-    RETURN r, c, ri
-    ORDER BY r.createdAt DESC
-    LIMIT 100
-    """
-    results = neo4j_db.execute_query(query)
-    inbox: list[dict[str, Any]] = []
-
-    for record in results:
-        raw = record["r"]
-        context = record.get("c")
-        review_item = record.get("ri")
-
-        if user.get("role") != "admin":
-            if raw.get("visibilityRequested") == "private" and raw.get("userId") != user.get("id"):
+def list_inbox(user: dict, db: Session) -> list[dict[str, Any]]:
+    if not user.get("org_id"):
+        return []
+    statement = (
+        select(RawContextRecord, ContextRecord, ApprovalRecord, Project)
+        .outerjoin(ContextRecord, ContextRecord.raw_context_id == RawContextRecord.id)
+        .outerjoin(ApprovalRecord, ApprovalRecord.raw_context_id == RawContextRecord.id)
+        .outerjoin(Project, RawContextRecord.project_id == Project.id)
+        .where(RawContextRecord.organization_id == user["org_id"])
+        .order_by(RawContextRecord.created_at.desc())
+        .limit(100)
+    )
+    rows = db.execute(statement).all()
+    response = []
+    for raw, context, approval, project in rows:
+        if user["role"] != "admin":
+            if raw.visibility == "private" and raw.user_id != user["id"]:
                 continue
-            project_requested = raw.get("projectRequested")
-            if project_requested and project_requested not in allowed_projects:
+            if project and project.name not in user.get("project_names", []):
                 continue
-
-        lane = "pending_review"
-        if context:
-            lane = "auto_curated"
-        elif review_item and review_item.get("status") == "quarantined":
-            lane = "quarantined"
-
-        inbox.append(
+        lane = "auto_curated" if context else "quarantined" if approval and approval.status == "quarantined" else "pending_review"
+        response.append(
             {
-                "raw": raw,
-                "context": context,
-                "review_item": review_item,
+                "raw": _serialize_raw(raw, project),
+                "context": _serialize_context(context, project) if context else None,
+                "review_item": _serialize_approval(approval) if approval else None,
                 "lane": lane,
             }
         )
+    return response
 
-    return inbox
+
+def list_approvals(user: dict, db: Session) -> list[dict[str, Any]]:
+    rows = db.execute(
+        select(ApprovalRecord, RawContextRecord, Project)
+        .join(RawContextRecord, ApprovalRecord.raw_context_id == RawContextRecord.id)
+        .outerjoin(Project, RawContextRecord.project_id == Project.id)
+        .where(
+            ApprovalRecord.organization_id == user["org_id"],
+            ApprovalRecord.status == "pending",
+        )
+        .order_by(ApprovalRecord.created_at.desc())
+    ).all()
+    return [
+        {"raw": _serialize_raw(raw, project), "review_item": _serialize_approval(approval)}
+        for approval, raw, project in rows
+    ]
 
 
-async def approve_review_item(review_id: str, approver: dict) -> dict[str, Any]:
-    now = _utcnow()
-    query = """
-    MATCH (r:RawContext)-[:QUEUED_AS]->(ri:ReviewItem {id: $review_id})
-    RETURN r, ri
-    LIMIT 1
-    """
-    results = neo4j_db.execute_query(query, {"review_id": review_id})
-    if not results:
-        raise HTTPException(status_code=404, detail="Review item not found")
-
-    raw = results[0]["r"]
-    review_item = results[0]["ri"]
-    project_name = review_item.get("proposedProject") or raw.get("projectRequested")
-
-    curator_input = {
-        "raw_context_id": raw["id"],
-        "uploaded_by": raw.get("uploaderEmail"),
-        "project": project_name,
-        "visibility_requested": review_item.get("proposedVisibility") or raw.get("visibilityRequested"),
-        "content": raw.get("content"),
-        "title": review_item.get("proposedTitle") or raw.get("title"),
-        "type": review_item.get("proposedContextType") or raw.get("contextType"),
-        "tags": review_item.get("tags") or raw.get("tags") or [],
-    }
-    curator_output = curate_context(curator_input)
-    curator_output.classification.canonical_title = review_item.get("proposedTitle") or curator_output.classification.canonical_title
-    curator_output.classification.summary = review_item.get("proposedSummary") or curator_output.classification.summary
-    curator_output.classification.suggested_visibility = review_item.get("proposedVisibility") or curator_output.classification.suggested_visibility
-    curator_output.classification.context_type = review_item.get("proposedContextType") or curator_output.classification.context_type
-
-    context_result = await _materialize_context(
-        raw_id=raw["id"],
-        raw_title=raw.get("title", "Approved Context"),
-        raw_content=raw.get("content", ""),
+async def approve_review_item(review_id: str, approver: dict, db: Session) -> dict[str, Any]:
+    approval = db.get(ApprovalRecord, review_id)
+    if approval is None or approval.organization_id != approver["org_id"]:
+        raise HTTPException(status_code=404, detail="Review item not found.")
+    if approval.status != "pending":
+        raise HTTPException(status_code=409, detail="Review item is no longer pending.")
+    raw = db.get(RawContextRecord, approval.raw_context_id)
+    if raw is None:
+        raise HTTPException(status_code=404, detail="Raw context not found.")
+    project = db.get(Project, raw.project_id) if raw.project_id else None
+    uploader = db.get(User, raw.user_id)
+    curator_output = curate_context(
+        {
+            "raw_context_id": raw.id,
+            "uploaded_by": uploader.email if uploader else None,
+            "project": project.name if project else None,
+            "visibility_requested": approval.proposed_visibility,
+            "content": raw.content,
+            "title": approval.proposed_title,
+            "type": approval.proposed_context_type,
+            "tags": json.loads(raw.tags_json),
+        }
+    )
+    curator_output.classification.canonical_title = approval.proposed_title
+    curator_output.classification.summary = approval.proposed_summary
+    curator_output.classification.context_type = approval.proposed_context_type
+    curator_output.classification.suggested_visibility = approval.proposed_visibility
+    context = await _materialize_context(
+        db=db,
+        raw=raw,
+        project=project,
         curator_output=curator_output,
         user={
-            "id": raw.get("userId"),
-            "email": raw.get("uploaderEmail"),
-            "org_id": raw.get("organizationId", settings.teamgraph_org_id),
-            "org_name": settings.teamgraph_org_name,
+            "id": raw.user_id,
+            "email": uploader.email if uploader else None,
+            "name": uploader.name if uploader else None,
+            "role": uploader.role if uploader else "member",
+            "org_id": raw.organization_id,
+            "org_name": approver.get("org_name"),
         },
-        now=now,
-        project_name=project_name,
-        relation_type="APPROVED_AS",
         approval_status="approved",
-        upload_channel=review_item.get("uploadChannel", raw.get("uploadChannel", "ui")),
-        source_type=review_item.get("sourceType", raw.get("sourceType", "ui_upload")),
-        tags=review_item.get("tags") or raw.get("tags") or [],
     )
-
-    update_query = """
-    MATCH (ri:ReviewItem {id: $review_id})
-    SET ri.status = 'approved', ri.reviewedAt = $now, ri.updatedAt = $now
-    RETURN ri
-    """
-    neo4j_db.execute_query(update_query, {"review_id": review_id, "now": now})
-
+    approval.status = "approved"
+    approval.reviewed_by_user_id = approver["id"]
+    approval.reviewed_at = datetime.datetime.utcnow()
+    db.commit()
     record_activity(
-        event_type="context_approved",
+        event_type="context.approved",
         title="Context approved",
-        description=f"{raw.get('title', 'Context')} was approved and sent to the live brain.",
+        description=raw.title,
         actor=approver,
-        metadata={"raw_id": raw["id"], "context_id": context_result["context_id"], "review_id": review_id},
+        metadata={"review_id": approval.id, "context_id": context.id},
+        db=db,
     )
-    return {"status": "approved", "context_id": context_result["context_id"], "graphiti": context_result["graphiti"]}
+    return {"status": "approved", "context_id": context.id}
 
 
-def reject_review_item(review_id: str, approver: dict) -> dict[str, Any]:
-    now = _utcnow()
-    query = """
-    MATCH (r:RawContext)-[:QUEUED_AS]->(ri:ReviewItem {id: $review_id})
-    SET ri.status = 'rejected', ri.reviewedAt = $now, ri.updatedAt = $now,
-        r.approvalStatus = 'rejected', r.updatedAt = $now
-    RETURN r, ri
-    """
-    results = neo4j_db.execute_query(query, {"review_id": review_id, "now": now})
-    if not results:
-        raise HTTPException(status_code=404, detail="Review item not found")
-
-    raw = results[0]["r"]
+def reject_review_item(review_id: str, approver: dict, db: Session) -> dict[str, Any]:
+    approval = db.get(ApprovalRecord, review_id)
+    if approval is None or approval.organization_id != approver["org_id"]:
+        raise HTTPException(status_code=404, detail="Review item not found.")
+    if approval.status != "pending":
+        raise HTTPException(status_code=409, detail="Review item is no longer pending.")
+    raw = db.get(RawContextRecord, approval.raw_context_id)
+    approval.status = "rejected"
+    approval.reviewed_by_user_id = approver["id"]
+    approval.reviewed_at = datetime.datetime.utcnow()
+    if raw:
+        raw.approval_status = "rejected"
+    db.commit()
     record_activity(
-        event_type="context_rejected",
+        event_type="context.rejected",
         title="Context rejected",
-        description=f"{raw.get('title', 'Context')} was rejected and kept out of the live brain.",
+        description=raw.title if raw else review_id,
         actor=approver,
-        metadata={"raw_id": raw["id"], "review_id": review_id},
+        metadata={"review_id": approval.id},
+        db=db,
     )
     return {"status": "rejected"}
