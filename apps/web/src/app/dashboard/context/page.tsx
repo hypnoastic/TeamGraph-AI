@@ -1,106 +1,78 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, Clock, Filter } from 'lucide-react';
-
-import { PageShell } from '@/components/page-shell';
-import { apiGet } from '@/lib/api';
-import type { InboxItem } from '@/lib/types';
+import { Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PageShell } from "@/components/page-shell";
+import { apiGet, apiPost } from "@/lib/api";
+import type { InboxItem, Project } from "@/lib/types";
 
 export default function ContextInboxPage() {
-  const [inbox, setInbox] = useState<InboxItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<InboxItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [form, setForm] = useState({ title: "", content: "", project: "", visibility: "project", type: "note" });
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
 
+  const refresh = () => apiGet<InboxItem[]>("/context/inbox").then(setItems).catch(() => setItems([]));
   useEffect(() => {
-    apiGet<InboxItem[]>('/context/inbox')
-      .then(setInbox)
-      .catch(() => setInbox([]))
-      .finally(() => setLoading(false));
+    refresh();
+    apiGet<Project[]>("/projects/").then((data) => {
+      setProjects(data);
+      if (data[0]) setForm((current) => ({ ...current, project: data[0].id }));
+    }).catch(() => setProjects([]));
   }, []);
 
-  const getLaneBadge = (lane: string) => {
-    switch (lane) {
-      case 'auto_curated':
-        return (
-          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-safe)] bg-[var(--color-accent-safe)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-safe)]/20">
-            <CheckCircle size={10} /> Auto Curated
-          </span>
-        );
-      case 'pending_review':
-        return (
-          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-review)] bg-[var(--color-accent-review)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-review)]/20">
-            <Clock size={10} /> Pending Review
-          </span>
-        );
-      case 'quarantined':
-        return (
-          <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent-unsafe)] bg-[var(--color-accent-unsafe)]/10 px-2.5 py-1 rounded-full border border-[var(--color-accent-unsafe)]/20">
-            <AlertTriangle size={10} /> Quarantined
-          </span>
-        );
-      default:
-        return (
-          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-muted)] bg-[var(--color-card-base)] px-2.5 py-1 rounded-full border border-[var(--color-border-subtle)]">
-            {lane}
-          </span>
-        );
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await apiPost<{ decision: string }>("/context/upload", {
+        ...form,
+        project: form.visibility === "org" ? null : form.project,
+        sourceType: "ui_upload",
+        upload_channel: "ui",
+      });
+      setNotice(response.decision === "auto_curate" ? "Added to the live brain." : "Sent to approval.");
+      setForm((current) => ({ ...current, title: "", content: "" }));
+      await refresh();
+    } catch {
+      setNotice("Upload failed.");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <PageShell
-      actions={
-        <button className="px-3 py-1.5 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-card-base)]/50 text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] flex items-center transition-colors">
-          <Filter size={14} className="mr-1.5" /> Filter
-        </button>
-      }
-    >
-      <div className="divide-y divide-[var(--color-border-subtle)]/60">
-        {loading ? (
-          <div className="text-[var(--color-text-muted)] text-sm py-4">Loading inbox items...</div>
-        ) : inbox.length === 0 ? (
-          <div className="text-[var(--color-text-muted)] text-sm py-12 text-center border border-dashed border-[var(--color-border-subtle)] rounded-xl">
-            No ingestion events recorded yet.
+    <PageShell title="Context inbox" description="Add trusted memory or review recent ingestion.">
+      <div className="grid gap-6 xl:grid-cols-[.75fr_1.25fr]">
+        <form onSubmit={submit} className="panel h-fit p-5">
+          <h2 className="mb-4 text-lg font-black">Add context</h2>
+          <input className="input-field mb-3" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+          <textarea className="input-field mb-3 min-h-44 resize-y" placeholder="Paste notes, decisions, or a handoff..." value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <select className="input-field" value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })}>
+              <option value="project">Project</option><option value="org">Organization</option><option value="private">Private</option>
+            </select>
+            <select className="input-field" disabled={form.visibility === "org"} value={form.project} onChange={(e) => setForm({ ...form, project: e.target.value })}>
+              {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+            </select>
           </div>
-        ) : (
-          inbox.map((item, index) => (
-            <div key={index} className="py-6 first:pt-0 last:pb-0 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-base font-semibold text-[var(--color-text-primary)]">
-                    {item.raw.title}
-                  </span>
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] rounded text-[var(--color-text-secondary)]">
-                    {item.raw.sourceType}
-                  </span>
-                  {item.context?.brainMode && (
-                    <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 border border-[var(--color-accent-brain)]/20 text-[var(--color-accent-brain)] bg-[var(--color-accent-brain)]/5 rounded">
-                      {item.context.brainMode}
-                    </span>
-                  )}
-                </div>
-                <div>{getLaneBadge(item.lane)}</div>
+          {notice && <div className="mono mt-3 text-xs font-bold">{notice}</div>}
+          <button disabled={busy} className="btn-primary mt-4 w-full"><Upload size={16} /> {busy ? "Checking..." : "Upload"}</button>
+        </form>
+        <section className="panel overflow-hidden">
+          <div className="border-b-2 border-black p-4 font-black">Recent ingestion</div>
+          {items.length ? items.map((item) => (
+            <article key={item.raw.id} className="border-b border-black/30 p-4 last:border-0">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div><h3 className="font-black">{item.raw.title}</h3><div className="mono mt-1 text-[10px] text-[var(--muted)]">{item.raw.projectRequested || "Organization"} · {item.raw.sourceType}</div></div>
+                <span className={`badge ${item.lane === "auto_curated" ? "badge-safe" : item.lane === "quarantined" ? "badge-danger" : "badge-review"}`}>{item.lane.replace("_", " ")}</span>
               </div>
-
-              <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-4xl">
-                {item.raw.content}
-              </p>
-
-              {item.review_item?.reason && (
-                <div className="text-xs text-[var(--color-text-muted)] pl-3 border-l-2 border-[var(--color-border-subtle)]">
-                  Curation notes: {item.review_item.reason}
-                </div>
-              )}
-
-              <div className="flex gap-4 text-[10px] text-[var(--color-text-muted)] font-mono pt-1">
-                <span>Uploaded: {new Date(item.raw.createdAt).toLocaleString()}</span>
-                {item.context?.graphitiEpisodeUuid && (
-                  <span>Episode: {item.context.graphitiEpisodeUuid.slice(0, 8)}...</span>
-                )}
-              </div>
-            </div>
-          ))
-        )}
+              <p className="mt-3 line-clamp-3 text-sm text-[var(--muted)]">{item.raw.content}</p>
+            </article>
+          )) : <div className="empty-state m-4">No context yet.</div>}
+        </section>
       </div>
     </PageShell>
   );

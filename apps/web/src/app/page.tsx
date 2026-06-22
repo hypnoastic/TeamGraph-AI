@@ -1,94 +1,42 @@
-import Link from 'next/link';
+import Link from "next/link";
+import { ArrowRight, Brain, Network, ShieldCheck } from "lucide-react";
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[var(--color-background-base)] flex flex-col font-sans selection:bg-[var(--color-accent-brain)] selection:text-black">
-      <nav className="w-full flex justify-between items-center px-8 py-6 max-w-7xl mx-auto">
-        <div className="text-[var(--color-text-primary)] font-bold tracking-tight text-xl">TeamGraph</div>
-        <div className="flex space-x-6 items-center">
-          <Link href="/login" className="text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
-            Sign In
-          </Link>
-          <Link href="/login" className="text-sm font-medium bg-[var(--color-text-primary)] text-black px-4 py-2 rounded-md hover:bg-white transition-colors">
-            Open Brain
-          </Link>
+    <main className="min-h-screen bg-[var(--paper)]">
+      <nav className="flex h-18 items-center justify-between border-b-2 border-black bg-[var(--surface)] px-5 md:px-10">
+        <b className="text-xl tracking-[-.05em]">TEAMGRAPH<span className="text-[var(--purple)]">.</span></b>
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="font-bold">Sign in</Link>
+          <Link href="/login" className="btn-primary">Open brain <ArrowRight size={16} /></Link>
         </div>
       </nav>
-
-      <main className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-[var(--color-accent-brain)] opacity-[0.03] blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="max-w-5xl w-full space-y-10 text-center relative z-10 mt-12">
-          <div className="inline-flex items-center space-x-2 border border-[var(--color-border-subtle)] bg-[var(--color-card-base)] rounded-full px-4 py-1.5 mb-4 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-accent-brain)] animate-pulse" />
-            <span className="text-xs font-mono text-[var(--color-text-secondary)] uppercase tracking-widest">
-              Graphiti Live Brain
-            </span>
-          </div>
-
-          <h1 className="text-6xl md:text-7xl font-bold tracking-tighter text-[var(--color-text-primary)] leading-[1.1]">
-            A live organization brain for <br className="hidden md:block" />
-            every teammate and every AI agent.
-          </h1>
-
-          <p className="text-xl md:text-2xl font-light text-[var(--color-text-secondary)] max-w-3xl mx-auto leading-relaxed">
-            TeamGraph wraps Graphiti and Neo4j with permissions, approvals, API key control, and a clean surface for humans and external agents.
-          </p>
-
-          <div className="flex items-center justify-center space-x-4 pt-4">
-            <Link href="/login" className="btn-primary text-lg px-8 py-4 bg-[var(--color-accent-brain)] text-black hover:bg-[var(--color-accent-brain)] hover:opacity-90 transition-all font-semibold rounded-md shadow-[0_0_20px_rgba(0,245,212,0.15)]">
-              Launch Brain Chat
-            </Link>
-          </div>
-
-          <div className="mt-24 relative max-w-5xl mx-auto">
-            <div className="border border-[var(--color-border-subtle)] bg-[var(--color-card-base)] rounded-xl p-1 shadow-2xl relative">
-              <div className="bg-[var(--color-background-surface)] rounded-lg p-8 md:p-12 relative overflow-hidden flex flex-col md:flex-row items-center justify-between min-h-[300px]">
-                <div className="flex flex-col space-y-4 w-full md:w-1/4 z-10">
-                  <div className="bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] rounded px-4 py-3 text-sm font-mono text-[var(--color-text-secondary)]">
-                    Slack / GitHub / MCP
-                  </div>
-                  <div className="bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] rounded px-4 py-3 text-sm font-mono text-[var(--color-text-secondary)]">
-                    UI Uploads / Demo Connectors
-                  </div>
-                </div>
-
-                <div className="hidden md:flex flex-1 justify-center items-center text-[var(--color-border-subtle)] z-10 text-2xl font-light">
-                  →
-                </div>
-
-                <div className="w-full md:w-1/3 flex flex-col items-center justify-center my-8 md:my-0 z-10 relative">
-                  <div className="border border-[var(--color-border-subtle)] bg-[var(--color-card-base)] p-6 rounded-xl w-full text-center relative overflow-hidden">
-                    <div className="text-[var(--color-accent-brain)] font-mono text-sm tracking-widest uppercase mb-2">
-                      TeamGraph Control Layer
-                    </div>
-                    <div className="text-[var(--color-text-primary)] font-medium">
-                      Safety, approvals, permissions, audit
-                    </div>
-                  </div>
-                </div>
-
-                <div className="hidden md:flex flex-1 justify-center items-center text-[var(--color-border-subtle)] z-10 text-2xl font-light">
-                  →
-                </div>
-
-                <div className="w-full md:w-1/4 flex flex-col items-end z-10">
-                  <div className="border border-[var(--color-accent-mcp)] border-opacity-30 bg-[#16161A] p-6 rounded-xl w-full text-center">
-                    <div className="text-[var(--color-accent-mcp)] font-mono text-sm tracking-widest uppercase mb-2">
-                      Graphiti + Neo4j
-                    </div>
-                    <div className="text-[var(--color-text-primary)] font-medium">Live Brain Memory</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:px-10 md:py-24 lg:grid-cols-[1.05fr_.95fr] lg:items-center">
+        <div>
+          <span className="badge badge-live">Graphiti live memory</span>
+          <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[.93] tracking-[-.075em] sm:text-7xl">Your team knows more than its chat history.</h1>
+          <p className="mt-6 max-w-xl text-lg font-medium">TeamGraph turns approved context into a searchable organization brain for people and AI agents.</p>
+          <Link href="/login" className="btn-primary mt-8 px-6 py-4">Build your graph <ArrowRight size={18} /></Link>
+        </div>
+        <div className="relative min-h-[430px] border-2 border-black bg-black p-5 shadow-[10px_10px_0_var(--purple)]">
+          <div className="mono mb-5 flex justify-between text-xs font-bold uppercase text-white"><span>Live brain map</span><span className="text-[var(--lime)]">● online</span></div>
+          <div className="relative h-[350px] bg-[var(--surface)]">
+            <div className="absolute left-[8%] top-[18%] border-2 border-black bg-[var(--yellow)] p-4 font-black shadow-[4px_4px_0_black]"><Brain /> TeamGraph</div>
+            <div className="absolute right-[8%] top-[12%] border-2 border-black bg-[var(--cyan)] p-3 font-bold">Projects</div>
+            <div className="absolute bottom-[16%] left-[14%] border-2 border-black bg-[var(--lime)] p-3 font-bold">Approved facts</div>
+            <div className="absolute bottom-[11%] right-[10%] border-2 border-black bg-[var(--coral)] p-3 font-bold">AI agents</div>
+            <svg className="absolute inset-0 h-full w-full" aria-hidden="true"><path d="M140 100 L330 75 M140 115 L150 280 M190 280 L350 285" stroke="#111" strokeWidth="3" fill="none" strokeDasharray="8 7" /></svg>
           </div>
         </div>
-      </main>
-
-      <footer className="py-8 text-center text-sm text-[var(--color-text-muted)] font-mono">
-        © 2026 TeamGraph AI.
-      </footer>
-    </div>
+      </section>
+      <section className="border-y-2 border-black bg-[var(--yellow)]">
+        <div className="mx-auto grid max-w-7xl md:grid-cols-3">
+          {[[ShieldCheck, "Safe ingestion"], [Network, "Temporal graph"], [Brain, "Grounded answers"]].map(([Icon, label], index) => (
+            <div key={String(label)} className={`flex items-center gap-3 p-6 ${index < 2 ? "border-b-2 border-black md:border-b-0 md:border-r-2" : ""}`}><Icon size={26} /><b className="text-lg">{String(label)}</b></div>
+          ))}
+        </div>
+      </section>
+      <footer className="flex justify-between bg-black px-5 py-7 text-sm text-white md:px-10"><b>TeamGraph AI</b><span className="mono">Graphiti + Neo4j</span></footer>
+    </main>
   );
 }

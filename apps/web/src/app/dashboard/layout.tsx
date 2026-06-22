@@ -1,146 +1,115 @@
 "use client";
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import {
-  Activity,
-  Brain,
-  Inbox,
-  Key,
-  LogOut,
-  Network,
-  Plug,
-  Settings,
-  ShieldCheck,
-  Sparkles,
-  Users,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { Activity, Brain, ChevronRight, Code2, Inbox, Key, LayoutDashboard, LogOut, Menu, Network, Plug, Settings, ShieldCheck, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { apiGet } from '@/lib/api';
-import type { HealthResponse } from '@/lib/types';
+import { apiGet, apiPost } from "@/lib/api";
+import type { HealthResponse, SessionUser } from "@/lib/types";
 
 const navItems = [
-  { name: 'Brain Chat', path: '/dashboard/brain', icon: Brain },
-  { name: 'Graph', path: '/dashboard/graph', icon: Network },
-  { name: 'Context Inbox', path: '/dashboard/context', icon: Inbox },
-  { name: 'Approvals', path: '/dashboard/approvals', icon: ShieldCheck, adminOnly: true },
-  { name: 'API Keys', path: '/dashboard/api-keys', icon: Key },
-  { name: 'Connectors', path: '/dashboard/connectors', icon: Plug },
-  { name: 'Team', path: '/dashboard/team', icon: Users, adminOnly: true },
-  { name: 'Activity', path: '/dashboard/activity', icon: Activity },
-  { name: 'Settings', path: '/dashboard/settings', icon: Settings },
+  { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
+  { name: "Brain Chat", path: "/dashboard/brain", icon: Brain },
+  { name: "Graph", path: "/dashboard/graph", icon: Network },
+  { name: "Context", path: "/dashboard/context", icon: Inbox },
+  { name: "Approvals", path: "/dashboard/approvals", icon: ShieldCheck, adminOnly: true },
+  { name: "Team", path: "/dashboard/team", icon: Users, adminOnly: true },
+  { name: "API Keys", path: "/dashboard/api-keys", icon: Key },
+  { name: "MCP Setup", path: "/dashboard/mcp", icon: Code2 },
+  { name: "Connectors", path: "/dashboard/connectors", icon: Plug },
+  { name: "Activity", path: "/dashboard/activity", icon: Activity },
+  { name: "Settings", path: "/dashboard/settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const userData = localStorage.getItem('teamgraph_user');
-    if (!userData) {
-      router.push('/login');
+    const raw = localStorage.getItem("teamgraph_user");
+    if (!raw) {
+      router.replace("/login");
       return;
     }
-
-    setUser(JSON.parse(userData));
-    apiGet<HealthResponse>('/health', false)
-      .then(setHealth)
-      .catch(() => setHealth(null));
+    const stored = JSON.parse(raw) as SessionUser;
+    if (stored.onboarding_required) {
+      router.replace("/onboarding");
+      return;
+    }
+    apiGet<SessionUser>("/auth/me").then((fresh) => {
+      localStorage.setItem("teamgraph_user", JSON.stringify(fresh));
+      setUser(fresh);
+    }).catch(() => {
+      localStorage.removeItem("teamgraph_token");
+      localStorage.removeItem("teamgraph_user");
+      router.replace("/login");
+    });
+    apiGet<HealthResponse>("/health", false).then(setHealth).catch(() => setHealth(null));
   }, [router]);
 
-  const activeItem = useMemo(
-    () => navItems.find((item) => pathname.startsWith(item.path)) ?? navItems[0],
-    [pathname]
-  );
-
-  const handleLogout = () => {
-    localStorage.removeItem('teamgraph_token');
-    localStorage.removeItem('teamgraph_user');
-    router.push('/login');
+  const logout = async () => {
+    await apiPost("/auth/logout", {}).catch(() => undefined);
+    localStorage.removeItem("teamgraph_token");
+    localStorage.removeItem("teamgraph_user");
+    router.replace("/login");
   };
 
-  if (!user) return null;
+  if (!user) return <div className="min-h-screen bg-[var(--paper)]" />;
+
+  const active = navItems.find((item) => item.path === pathname) ?? navItems.find((item) => item.path !== "/dashboard" && pathname.startsWith(item.path)) ?? navItems[0];
+
+  const navigation = (
+    <>
+      <Link href="/dashboard" className="flex h-16 items-center border-b-2 border-white px-5 text-xl font-black tracking-[-.05em]">
+        TEAMGRAPH<span className="text-[var(--lime)]">.</span>
+      </Link>
+      <nav className="flex-1 overflow-y-auto p-3">
+        {navItems.map((item) => {
+          if (item.adminOnly && user.role !== "admin") return null;
+          const selected = item.path === "/dashboard" ? pathname === item.path : pathname.startsWith(item.path);
+          const Icon = item.icon;
+          return (
+            <Link key={item.path} href={item.path} onClick={() => setOpen(false)} className={`mb-1 flex items-center gap-3 border-2 px-3 py-2.5 text-sm font-bold ${selected ? "border-black bg-[var(--lime)] text-black shadow-[3px_3px_0_white]" : "border-transparent text-white hover:border-white"}`}>
+              <Icon size={17} strokeWidth={2.5} />
+              <span>{item.name}</span>
+              {selected && <ChevronRight size={15} className="ml-auto" />}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="border-t-2 border-white p-4 text-white">
+        <div className="mb-3 flex gap-2">
+          <span className={`h-2.5 w-2.5 border border-black ${health?.graphiti.mode === "live" && health?.neo4j.status === "ok" ? "bg-[var(--lime)]" : "bg-[var(--yellow)]"}`} />
+          <span className="mono text-[10px] uppercase">{health?.graphiti.mode || "checking"} brain</span>
+        </div>
+        <div className="truncate text-sm font-bold">{user.name}</div>
+        <div className="mono mb-3 truncate text-[10px] text-white/60">{user.org_name}</div>
+        <button onClick={logout} className="flex items-center gap-2 text-xs font-bold"><LogOut size={14} /> Log out</button>
+      </div>
+    </>
+  );
 
   return (
-    <div className="min-h-screen bg-[#050506] text-[var(--color-text-primary)]">
-      <div className="flex min-h-screen">
-        <aside className="hidden xl:flex w-64 border-r border-[var(--color-border-subtle)] bg-[#07080A] flex-col">
-          <div className="p-6 border-b border-[var(--color-border-subtle)] flex items-center gap-2">
-            <Sparkles size={18} className="text-[var(--color-accent-brain)]" />
-            <span className="font-semibold tracking-tight text-base">TeamGraph</span>
+    <div className="min-h-screen bg-[var(--paper)]">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col bg-black lg:flex">{navigation}</aside>
+      {open && <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/45 lg:hidden" onClick={() => setOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-black transition-transform lg:hidden ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <button onClick={() => setOpen(false)} className="absolute right-4 top-5 text-white"><X /></button>
+        {navigation}
+      </aside>
+      <div className="lg:pl-60">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b-2 border-black bg-[var(--surface)] px-4 md:px-7">
+          <div className="flex items-center gap-3">
+            <button aria-label="Open navigation" onClick={() => setOpen(true)} className="border-2 border-black bg-[var(--yellow)] p-1.5 lg:hidden"><Menu size={18} /></button>
+            <h1 className="text-lg font-black tracking-[-.03em]">{active.name}</h1>
           </div>
-
-          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-            {navItems.map((item) => {
-              if (item.adminOnly && user.role !== 'admin') return null;
-              const isActive = pathname.startsWith(item.path);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isActive
-                      ? 'text-[var(--color-text-primary)] bg-[var(--color-card-base)]/50'
-                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-card-base)]/30 hover:text-[var(--color-text-primary)]'
-                  }`}
-                >
-                  <Icon size={16} className={isActive ? 'text-[var(--color-accent-brain)]' : 'text-[var(--color-text-secondary)]'} />
-                  <span className="text-sm font-medium">{item.name}</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="p-4 border-t border-[var(--color-border-subtle)] space-y-4">
-            <div className="flex items-center gap-2 px-2">
-              <div className="w-7 h-7 rounded-full bg-[var(--color-border-subtle)] flex items-center justify-center text-[10px] font-bold text-[var(--color-text-secondary)]">
-                {user.email.charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-medium truncate text-[var(--color-text-primary)]">{user.name || 'Member'}</div>
-                <div className="text-[10px] text-[var(--color-text-secondary)] truncate">{user.email}</div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 px-2 text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider font-mono">
-              <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${health?.graphiti.mode ? 'bg-[var(--color-accent-brain)]' : 'bg-red-500'}`} />
-                Graphiti
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${health?.neo4j.status === 'healthy' ? 'bg-[var(--color-accent-safe)]' : 'bg-red-500'}`} />
-                Neo4j
-              </div>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-card-base)]/50 hover:text-[var(--color-text-primary)] transition-colors text-xs"
-            >
-              <LogOut size={14} />
-              <span className="font-medium">Log out</span>
-            </button>
-          </div>
-        </aside>
-
-        <div className="flex-1 min-w-0 flex flex-col">
-          <header className="sticky top-0 z-20 border-b border-[var(--color-border-subtle)]/50 bg-[#050506]/80 backdrop-blur-md">
-            <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between gap-4">
-              <div>
-                <h1 className="text-lg font-semibold tracking-tight">{activeItem.name}</h1>
-              </div>
-              <div className="text-xs text-[var(--color-text-secondary)] px-3 py-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-card-base)]/30 font-mono">
-                {user.role} mode
-              </div>
-            </div>
-          </header>
-
-          <main className="flex-1 px-6 py-6 md:px-8 md:py-8">{children}</main>
-        </div>
+          <span className="badge">{user.role}</span>
+        </header>
+        <main className="p-4 md:p-7">{children}</main>
       </div>
     </div>
   );

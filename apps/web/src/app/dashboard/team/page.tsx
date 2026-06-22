@@ -1,69 +1,47 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Mail, MoreHorizontal } from 'lucide-react';
-
-import { PageShell } from '@/components/page-shell';
-import { apiGet } from '@/lib/api';
-import type { TeamMember } from '@/lib/types';
+import { Copy, Trash2, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PageShell } from "@/components/page-shell";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import type { Project, TeamMember } from "@/lib/types";
 
 export default function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [email, setEmail] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
 
-  useEffect(() => {
-    apiGet<TeamMember[]>('/team')
-      .then(setTeam)
-      .catch(() => setTeam([]));
-  }, []);
+  const refresh = () => apiGet<TeamMember[]>("/team/").then(setTeam).catch(() => setTeam([]));
+  useEffect(() => { refresh(); apiGet<Project[]>("/projects/").then(setProjects).catch(() => setProjects([])); }, []);
+
+  const invite = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const response = await apiPost<{ invite_url: string }>("/team/invitations", { email, role: "member", project_ids: projects.map((project) => project.id) });
+    setInviteUrl(response.invite_url);
+    setEmail("");
+  };
+
+  const remove = async (id: string) => { await apiDelete(`/team/${id}`); await refresh(); };
 
   return (
-    <PageShell>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
-              <th className="pb-3 font-mono uppercase tracking-wider font-medium">User</th>
-              <th className="pb-3 font-mono uppercase tracking-wider font-medium">Role</th>
-              <th className="pb-3 font-mono uppercase tracking-wider font-medium">Project Access</th>
-              <th className="pb-3 font-mono uppercase tracking-wider font-medium text-right"></th>
+    <PageShell title="Team" description="Members inherit only assigned project access.">
+      <form onSubmit={invite} className="panel mb-6 flex flex-col gap-3 p-4 md:flex-row">
+        <input className="input-field flex-1" type="email" placeholder="teammate@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <button className="btn-primary"><UserPlus size={16} /> Invite</button>
+      </form>
+      {inviteUrl && <button onClick={() => navigator.clipboard.writeText(inviteUrl)} className="mb-5 flex w-full items-center gap-2 border-2 border-black bg-[var(--lime)] p-3 text-left text-sm font-bold"><Copy size={16} /> Copy invite link</button>}
+      <div className="panel overflow-x-auto">
+        <table className="data-table">
+          <thead><tr><th>Member</th><th>Role</th><th>Projects</th><th /></tr></thead>
+          <tbody>{team.map((member) => (
+            <tr key={member.id}>
+              <td><b>{member.name}</b><div className="mono text-[10px] text-[var(--muted)]">{member.email}</div></td>
+              <td><span className={`badge ${member.role === "admin" ? "badge-live" : ""}`}>{member.role}</span></td>
+              <td>{member.projects.join(", ") || "None"}</td>
+              <td className="text-right"><button aria-label={`Remove ${member.name}`} onClick={() => remove(member.id)}><Trash2 size={16} /></button></td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--color-border-subtle)]/40">
-            {team.map((member) => (
-              <tr key={member.id} className="hover:bg-[var(--color-card-base)]/20 transition-colors">
-                <td className="py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-[var(--color-border-subtle)] flex items-center justify-center font-semibold text-[10px] text-[var(--color-text-secondary)]">
-                      {member.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="font-medium text-[var(--color-text-primary)]">{member.name}</div>
-                      <div className="text-[var(--color-text-muted)] text-[10px] flex items-center mt-0.5 font-mono">
-                        <Mail size={10} className="mr-1" /> {member.email}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3.5">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider font-medium border ${
-                      member.role === 'admin'
-                        ? 'bg-[var(--color-accent-brain)]/10 text-[var(--color-accent-brain)] border-[var(--color-accent-brain)]/20'
-                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-                    }`}
-                  >
-                    {member.role}
-                  </span>
-                </td>
-                <td className="py-3.5 text-[var(--color-text-secondary)] font-mono">{member.projects.join(', ') || 'No project access'}</td>
-                <td className="py-3.5 text-right">
-                  <button className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] p-1 rounded transition-colors">
-                    <MoreHorizontal size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
+          ))}</tbody>
         </table>
       </div>
     </PageShell>

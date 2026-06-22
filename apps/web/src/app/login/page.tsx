@@ -1,172 +1,85 @@
 "use client";
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { apiGet, apiPost } from "@/lib/api";
+import type { SessionUser } from "@/lib/types";
 
-import { apiPost } from '@/lib/api';
+type AuthMode = "login" | "signup";
 
-type AuthMode = 'login' | 'signup';
+function errorMessage(error: unknown) {
+  if (error && typeof error === "object" && "response" in error) {
+    const response = (error as { response?: { data?: { detail?: string } } }).response;
+    if (response?.data?.detail) return response.data.detail;
+  }
+  return error instanceof Error ? error.message : "Authentication failed";
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>('login');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const title = useMemo(
-    () => (mode === 'login' ? 'Sign in to TeamGraph' : 'Create your account'),
-    [mode]
-  );
-
-  const handleAuth = async (event: React.FormEvent) => {
+  const authenticate = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError('');
-    setIsSubmitting(true);
-
+    setBusy(true);
+    setError("");
     try {
-      const payload =
-        mode === 'login'
-          ? { email, password }
-          : { name: name || email.split('@')[0] || 'New Member', email, password };
-      const data = await apiPost<{ token: string; user: Record<string, unknown> }>(
-        mode === 'login' ? '/auth/login' : '/auth/signup',
-        payload,
+      const data = await apiPost<{ token: string; user: SessionUser }>(
+        mode === "login" ? "/auth/login" : "/auth/signup",
+        mode === "login" ? { email, password } : { name, email, password },
         false
       );
-
-      localStorage.setItem('teamgraph_token', data.token);
-      localStorage.setItem('teamgraph_user', JSON.stringify(data.user));
-      router.push('/dashboard/brain');
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || err?.message || 'Authentication failed');
+      localStorage.setItem("teamgraph_token", data.token);
+      localStorage.setItem("teamgraph_user", JSON.stringify(data.user));
+      const invite = new URLSearchParams(window.location.search).get("invite");
+      if (invite) {
+        await apiPost("/team/invitations/accept", { token: invite });
+        const user = await apiGet<SessionUser>("/auth/me");
+        localStorage.setItem("teamgraph_user", JSON.stringify(user));
+        router.replace("/dashboard");
+      } else {
+        router.replace(data.user.onboarding_required ? "/onboarding" : "/dashboard");
+      }
+    } catch (caught) {
+      setError(errorMessage(caught));
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
-  const loginAs = (type: 'admin' | 'member' | 'demo') => {
-    setMode('login');
-    setEmail(`${type}@teamgraph.local`);
-    setPassword('password');
-    setName(type === 'demo' ? 'Demo Operator' : '');
+  const demo = (kind: "admin" | "member" | "demo") => {
+    setMode("login");
+    setEmail(`${kind}@teamgraph.local`);
+    setPassword("password");
   };
 
   return (
-    <div className="min-h-screen bg-[#050506] flex flex-col items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full space-y-6">
-        <div className="text-center space-y-2">
-          <Link href="/" className="text-xl font-bold tracking-tight text-[var(--color-text-primary)]">
-            TeamGraph
-          </Link>
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-            Live Brain operations
-          </p>
-        </div>
-
-        <div className="bg-[#0A0A0B] border border-[var(--color-border-subtle)] rounded-2xl p-8 space-y-6">
-          <div className="text-center">
-            <h2 className="text-lg font-medium text-[var(--color-text-primary)]">{title}</h2>
+    <main className="grid min-h-screen lg:grid-cols-[.8fr_1.2fr]">
+      <section className="flex flex-col justify-between bg-black p-7 text-white md:p-12">
+        <Link href="/" className="text-xl font-black tracking-[-.05em]">TEAMGRAPH<span className="text-[var(--lime)]">.</span></Link>
+        <h1 className="my-16 max-w-md text-5xl font-black leading-[.94] tracking-[-.07em]">Memory your agents can trust.</h1>
+        <span className="mono text-xs text-white/60">GRAPHITI / NEO4J / TEAMGRAPH</span>
+      </section>
+      <section className="grid place-items-center bg-[var(--paper)] p-5">
+        <form onSubmit={authenticate} className="panel w-full max-w-md p-6 md:p-8">
+          <div className="mb-6 flex border-2 border-black">
+            {(["login", "signup"] as const).map((item) => <button type="button" key={item} onClick={() => setMode(item)} className={`flex-1 px-4 py-2 font-black capitalize ${mode === item ? "bg-[var(--yellow)]" : "bg-white"}`}>{item}</button>)}
           </div>
-
-          <form onSubmit={handleAuth} className="space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Full name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  className="input-field w-full text-sm"
-                  placeholder="Alicia Engineer"
-                  required
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Email address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="input-field w-full text-sm"
-                placeholder="you@teamgraph.ai"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-mono uppercase tracking-wider mb-2 text-[var(--color-text-secondary)]">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="input-field w-full text-sm"
-                placeholder="Enter password"
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs text-[var(--color-accent-unsafe)]">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn-primary w-full py-2.5 bg-[var(--color-accent-brain)] text-black font-semibold hover:opacity-90 transition-opacity disabled:opacity-60 text-sm"
-            >
-              {isSubmitting ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}
-            </button>
-          </form>
-
-          <div className="text-center text-xs">
-            <button
-              type="button"
-              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-              className="text-[var(--color-accent-brain)] hover:underline"
-            >
-              {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </button>
-          </div>
-
-          <div className="border-t border-[var(--color-border-subtle)] pt-4 space-y-3">
-            <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-muted)] text-center font-mono">
-              Quick access demo credentials
-            </div>
-            <div className="flex justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => loginAs('admin')}
-                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
-              >
-                Admin
-              </button>
-              <button
-                type="button"
-                onClick={() => loginAs('member')}
-                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
-              >
-                Member
-              </button>
-              <button
-                type="button"
-                onClick={() => loginAs('demo')}
-                className="px-3 py-1.5 rounded bg-[var(--color-card-base)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-card-hover)] transition-colors"
-              >
-                Demo
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          {mode === "signup" && <input className="input-field mb-3" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" required />}
+          <input className="input-field mb-3" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+          <input className="input-field mb-4" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" minLength={mode === "signup" ? 8 : 4} required />
+          {error && <div className="mb-4 border-2 border-black bg-[var(--coral)] p-3 text-sm font-bold">{error}</div>}
+          <button className="btn-primary w-full" disabled={busy}>{busy ? "Working..." : mode === "login" ? "Sign in" : "Create account"}</button>
+          <div className="mono my-5 text-center text-[10px] font-bold uppercase">Demo access</div>
+          <div className="grid grid-cols-3 gap-2">{(["admin", "member", "demo"] as const).map((item) => <button type="button" className="btn-secondary min-h-9 px-2 text-xs capitalize" key={item} onClick={() => demo(item)}>{item}</button>)}</div>
+        </form>
+      </section>
+    </main>
   );
 }
-

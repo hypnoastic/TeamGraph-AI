@@ -37,6 +37,12 @@ export async function apiPost<T>(path: string, data?: unknown, authenticated = t
   return response.data;
 }
 
+export async function apiPatch<T>(path: string, data?: unknown, authenticated = true): Promise<T> {
+  const client = createApiClient(authenticated);
+  const response = await client.patch<T>(path, data);
+  return response.data;
+}
+
 export async function apiDelete<T>(path: string, authenticated = true): Promise<T> {
   const client = createApiClient(authenticated);
   const response = await client.delete<T>(path);

@@ -1,165 +1,41 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { Copy, Key, Plus, Trash2 } from 'lucide-react';
+import { Copy, Key, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PageShell } from "@/components/page-shell";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import type { ApiKeyRecord } from "@/lib/types";
 
-import { PageShell } from '@/components/page-shell';
-import { apiDelete, apiGet, apiPost } from '@/lib/api';
-import type { ApiKeyRecord } from '@/lib/types';
-
-const scopeOptions = ['context.read', 'context.write', 'graph.optimize'];
+const scopes = ["context.read", "context.write", "graph.optimize"];
 
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
-  const [purpose, setPurpose] = useState('Local MCP');
-  const [selectedScopes, setSelectedScopes] = useState<string[]>(['context.read', 'context.write']);
-  const [latestRawKey, setLatestRawKey] = useState<string | null>(null);
+  const [purpose, setPurpose] = useState("MCP agent");
+  const [selected, setSelected] = useState(["context.read", "context.write"]);
+  const [rawKey, setRawKey] = useState("");
+  const refresh = () => apiGet<ApiKeyRecord[]>("/api-keys/").then(setKeys).catch(() => setKeys([]));
+  useEffect(() => { apiGet<ApiKeyRecord[]>("/api-keys/").then(setKeys).catch(() => setKeys([])); }, []);
 
-  const fetchKeys = async () => {
-    const data = await apiGet<ApiKeyRecord[]>('/api-keys');
-    setKeys(data);
-  };
-
-  useEffect(() => {
-    fetchKeys().catch(() => setKeys([]));
-  }, []);
-
-  const createKey = async () => {
-    const response = await apiPost<ApiKeyRecord>('/api-keys', {
-      purpose,
-      scopes: selectedScopes,
-      project_name: 'Core Platform',
-    });
-    setLatestRawKey(response.raw_key || null);
-    await fetchKeys();
-  };
-
-  const revokeKey = async (id: string) => {
-    await apiDelete(`/api-keys/${id}`);
-    await fetchKeys();
-  };
-
-  const toggleScope = (scope: string) => {
-    setSelectedScopes((current) =>
-      current.includes(scope) ? current.filter((value) => value !== scope) : [...current, scope]
-    );
+  const create = async () => {
+    const response = await apiPost<ApiKeyRecord>("/api-keys/", { purpose, scopes: selected });
+    setRawKey(response.raw_key || "");
+    await refresh();
   };
 
   return (
-    <PageShell>
-      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-10 pb-8 border-b border-[var(--color-border-subtle)]/60">
-        
-        {/* Create API Key */}
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Create API Key</h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-mono uppercase tracking-wider mb-2 text-[var(--color-text-muted)]">Purpose</label>
-              <input
-                value={purpose}
-                onChange={(event) => setPurpose(event.target.value)}
-                className="input-field w-full text-sm"
-                placeholder="e.g. Local MCP Server"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-[var(--color-text-muted)]">Scopes</label>
-              <div className="flex flex-wrap gap-2">
-                {scopeOptions.map((scope) => (
-                  <button
-                    key={scope}
-                    onClick={() => toggleScope(scope)}
-                    className={`px-3 py-1.5 rounded-lg text-xs border font-mono transition-colors ${
-                      selectedScopes.includes(scope)
-                        ? 'border-[var(--color-accent-brain)]/40 text-[var(--color-accent-brain)] bg-[var(--color-accent-brain)]/5'
-                        : 'border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:border-[var(--color-text-primary)]/30'
-                    }`}
-                  >
-                    {scope}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <button
-              onClick={createKey}
-              className="px-4 py-2 rounded-lg bg-[var(--color-accent-brain)] text-black text-xs font-semibold hover:opacity-90 transition-opacity flex items-center"
-            >
-              <Plus size={14} className="mr-1.5" /> Create Key
-            </button>
-          </div>
-        </div>
-
-        {/* MCP CLI */}
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-[var(--color-text-primary)]">MCP Integration</h2>
-          <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-            Run <code className="font-mono text-[var(--color-text-primary)]">teamgraph-mcp login</code> in your terminal to save your TeamGraph server URL and generated API key locally.
-          </p>
-          {latestRawKey && (
-            <div className="bg-[#0A0A0B] border border-[var(--color-border-subtle)] p-4 rounded-xl space-y-2">
-              <div className="text-[9px] uppercase tracking-wider text-[var(--color-text-muted)] font-mono">Newly generated raw key</div>
-              <div className="flex items-center justify-between gap-3">
-                <code className="text-[var(--color-accent-mcp)] text-xs break-all font-mono">{latestRawKey}</code>
-                <button
-                  onClick={() => navigator.clipboard.writeText(latestRawKey)}
-                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-1"
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Active Keys Table */}
-      <div className="pt-8 space-y-4">
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)]">Active Keys</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-[var(--color-border-subtle)] text-[var(--color-text-muted)]">
-                <th className="pb-3 font-mono uppercase tracking-wider font-medium">Purpose</th>
-                <th className="pb-3 font-mono uppercase tracking-wider font-medium">Key Prefix</th>
-                <th className="pb-3 font-mono uppercase tracking-wider font-medium">Scopes</th>
-                <th className="pb-3 font-mono uppercase tracking-wider font-medium">Last Used</th>
-                <th className="pb-3 font-mono uppercase tracking-wider font-medium"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--color-border-subtle)]/40">
-              {keys.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-[var(--color-text-muted)] text-center">
-                    No active API keys found.
-                  </td>
-                </tr>
-              ) : (
-                keys.map((key) => (
-                  <tr key={key.id} className="hover:bg-[var(--color-card-base)]/20 transition-colors">
-                    <td className="py-3.5 font-medium text-[var(--color-text-primary)] flex items-center">
-                      <Key size={12} className="mr-2 text-[var(--color-text-muted)]" /> {key.purpose}
-                    </td>
-                    <td className="py-3.5 text-[var(--color-text-secondary)] font-mono">{key.key_prefix}••••••••</td>
-                    <td className="py-3.5 text-[var(--color-text-secondary)] font-mono">{key.scopes.join(', ')}</td>
-                    <td className="py-3.5 text-[var(--color-text-secondary)]">
-                      {key.last_used_at ? new Date(key.last_used_at).toLocaleString() : 'Never'}
-                    </td>
-                    <td className="py-3.5 text-right">
-                      <button
-                        onClick={() => revokeKey(key.id)}
-                        className="text-[var(--color-accent-unsafe)] hover:text-red-400 p-1.5 rounded transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+    <PageShell title="API keys" description="Keys are hashed and the raw value is shown once.">
+      <div className="grid gap-6 xl:grid-cols-[.65fr_1.35fr]">
+        <section className="panel h-fit p-5">
+          <h2 className="mb-4 font-black">New agent key</h2>
+          <input className="input-field" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+          <div className="my-4 flex flex-wrap gap-2">{scopes.map((scope) => <button key={scope} onClick={() => setSelected((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])} className={`badge ${selected.includes(scope) ? "badge-live" : ""}`}>{scope}</button>)}</div>
+          <button onClick={create} className="btn-primary w-full"><Plus size={15} /> Create</button>
+          {rawKey && <button onClick={() => navigator.clipboard.writeText(rawKey)} className="mono mt-4 flex w-full items-center gap-2 break-all border-2 border-black bg-[var(--lime)] p-3 text-left text-xs"><Copy size={15} className="shrink-0" /> {rawKey}</button>}
+        </section>
+        <section className="panel overflow-x-auto">
+          <table className="data-table"><thead><tr><th>Key</th><th>Scopes</th><th>Last used</th><th /></tr></thead><tbody>{keys.map((item) => <tr key={item.id}><td><div className="flex items-center gap-2"><Key size={15} /><b>{item.purpose}</b></div><div className="mono text-[10px]">{item.key_prefix}••••••</div></td><td>{item.scopes.join(", ")}</td><td>{item.last_used_at ? new Date(item.last_used_at).toLocaleDateString() : "Never"}</td><td><button onClick={async () => { await apiDelete(`/api-keys/${item.id}`); await refresh(); }}><Trash2 size={16} /></button></td></tr>)}</tbody></table>
+          {!keys.length && <div className="empty-state m-4">No active keys.</div>}
+        </section>
       </div>
     </PageShell>
   );
