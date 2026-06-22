@@ -1,148 +1,108 @@
 # TeamGraph AI
-### *The Secure, Evolving Control Plane & Episodic Memory Gateway for Enterprise AI Agents*
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%20v15-050506?style=flat&logo=nextdotjs)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Neo4j](https://img.shields.io/badge/Database-Neo4j%20Graph-008CC1?style=flat&logo=neo4j)](https://neo4j.com/)
-[![PostgreSQL](https://img.shields.io/badge/Control--Plane-PostgreSQL-4169E1?style=flat&logo=postgresql)](https://www.postgresql.org/)
+TeamGraph is a governed live organization brain. Graphiti provides temporal memory, Neo4j stores the knowledge graph, and TeamGraph adds Postgres-backed identity, permissions, approvals, API keys, and audit controls.
 
----
+## Architecture
 
-## The Pitch
-AI agents are revolutionizing how teams work, but they suffer from two critical flaws:
-1. **Static, Disconnected Knowledge**: They lack long-term, evolving, episodic memory of past team decisions, context, and handoffs.
-2. **Safety & Governance Deficit**: Giving agents direct access to write corporate knowledge bases is a compliance and hallucination nightmare.
-
-**TeamGraph AI** solves this. It wraps **Graphiti** (episodic memory model) and **Neo4j** (graph database) with a robust, Postgres-backed governance layer. It provides a beautiful ChatGPT-style central brain interface for humans and a CLI/MCP server for AI agents—complete with human-in-the-loop safety gateways, API key scoping, and active connector state simulation.
-
----
-
-## Architecture & Information Flow
-
-```
-                      +-------------------+
-                      |   Human Operators  |
-                      +---------+---------+
-                                | (Brain Chat / Approvals UI)
-                                v
-                      +---------+---------+
-                      | Next.js Web App   |
-                      +---------+---------+
-                                |
-                                v
-+------------------+  +---------+---------+  +-------------------+
-| External Agents  |->| FastAPI Gateway   |<-|  Postgres Auth &  |
-| (via MCP / CLI)  |  +---------+---------+  |  API Scoping DB   |
-+------------------+            |            +-------------------+
-                                v
-                      +---------+---------+
-                      |  Safety Gate /    |
-                      |  Curation Engine  |
-                      +---------+---------+
-                                |
-                                v
-                      +---------+---------+
-                      | Graphiti Service  |
-                      +---------+---------+
-                                |
-                                v
-                      +---------+---------+
-                      | Neo4j memory DB   |
-                      +-------------------+
+```text
+Web app -> FastAPI -> TeamGraph safety/permission layer -> Graphiti -> Neo4j
+MCP CLI -> FastAPI -> scoped API-key validation ---------> Graphiti -> Neo4j
+                         |
+                         +-> Postgres control plane
 ```
 
----
+Graphiti is never exposed directly. If Graphiti or its LLM provider is unavailable, retrieval falls back to approved Postgres context and the app remains usable.
 
-## Core Features
+## Run locally
 
-### 1. Episodic Knowledge Graph (`/dashboard/graph`)
-Visualizes organizational history over time using a dynamic, interactive `@xyflow/react` graph. Evolving episodes are highlighted in **rose**, and curated entities are in **amber**. Includes a metadata inspector and timeline log.
+Requirements: Python 3.11+, Node 20+, Postgres, and either hosted Neo4j or the optional local container.
 
-### 2. ChatGPT-Style Conversational Brain (`/dashboard/brain`)
-Query the team's combined knowledge with interactive citations and context linkages. Suggestions are surfaced as small minimal pills. 
-
-### 3. Human-in-the-Loop Safety Gate (`/dashboard/approvals`)
-Any context uploaded by agents or connectors passes through an automated risk assessor. Items flagged with risk tags (e.g. `credential leak`, `contradictory context`) are held in the Approvals queue until approved or rejected by an admin.
-
-### 4. Postgres-Backed Scoped API Credentials (`/dashboard/api-keys`)
-Issue scoped tokens (`context.read`, `context.write`, `graph.optimize`) for external agents, securely hashing keys before storage.
-
-### 5. Simulator Connectors (`/dashboard/connectors`)
-Persisted simulated support for **Slack**, **GitHub**, and **Google Drive**. Clicking "Connect" instantly simulates Oauth; "Sync" launches a background progress spinner and updates sync status, cached in `localStorage` for demo reliability.
-
-### 6. Model Context Protocol CLI (`packages/teamgraph-mcp`)
-A node-based CLI allowing any MCP-compliant client (like Claude Desktop) to connect directly to the live TeamGraph memory.
-
----
-
-## Hackathon Demo Walkthrough
-
-Try the live flow using our pre-seeded **Demo Account**:
-
-### Step 1: Login
-- Go to `/login` and click the **Demo** shortcut button at the bottom (logs in as `demo@teamgraph.local` / `password`).
-
-### Step 2: Query the Brain
-- Land on **Brain Chat**. Type: *"What is the current status of the deployment?"* or click the pre-defined suggestion pills.
-- Watch the layout transition into an active chat view displaying references to pre-seeded episodes.
-
-### Step 3: Trigger a Sync
-- Navigate to **Connectors**. Click **Connect** on **GitHub**, then click **Sync**. 
-- Watch the progress wheel animate as the frontend mock simulates real-time data ingestion.
-
-### Step 4: Approve Agent Context
-- Go to **Context Inbox** to see raw data pipelines.
-- Open **Approvals** to review quarantined items. Click **Approve** to let them through to the Graphiti engine.
-
----
-
-## Local Installation
-
-### Prerequisites
-- Docker (for Neo4j)
-- Node.js & npm (for Web & CLI)
-- Python 3.10+ (for API)
-
-### 1. Database Setup
-Copy `.env.example` to `.env` and configure your database parameters. Start Neo4j:
 ```bash
-docker compose up -d neo4j
-```
+cp .env.example .env
+docker compose up -d neo4j                 # optional when using hosted Neo4j
 
-### 2. Seed Database
-Initialize and seed Postgres tables and the Neo4j instance:
-```bash
 cd apps/api
-python3 scripts/seed.py
-```
-
-### 3. Run Backend
-```bash
-cd apps/api
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+DEMO_MODE=true python scripts/seed.py      # optional hackathon data
 uvicorn main:app --reload --port 8000
 ```
 
-### 4. Run Frontend
 ```bash
 cd apps/web
+npm ci
 npm run dev
 ```
 
-### 5. Link MCP CLI
 ```bash
 cd packages/teamgraph-mcp
+npm ci
 npm run build
 npm link
 ```
-Use `teamgraph-mcp login --api-key <key> --server-url http://localhost:8000` to authenticate the CLI.
 
----
+Open `http://localhost:3000`. With `DEMO_MODE=true`, use `admin@teamgraph.local`, `member@teamgraph.local`, or `demo@teamgraph.local`; password: `password`.
 
-## Production Deployment
-Deploy the full stack to AWS EC2 using the production Docker Compose setup:
+## Product flows
+
+- Signup creates an account, then organization onboarding creates the first project.
+- Context uploads are scanned and curated before ingestion.
+- Safe context becomes a Graphiti episode immediately.
+- Risky context waits for an admin; rejected or quarantined content never enters Graphiti.
+- Brain Chat searches Graphiti first and returns citations, graph facts, confidence, and deterministic fallback answers.
+- API keys are stored as hashes and validated for every MCP request.
+- Members only see assigned projects and cannot approve context or manage the team.
+- Connector cards are placeholders only. Slack, GitHub, Drive, Notion, Jira, Linear, Gmail, and Calendar are intentionally not connected.
+
+## Environment
+
+Required in production:
+
+```text
+DATABASE_URL
+SECRET_KEY
+FRONTEND_ORIGIN
+PUBLIC_BASE_URL
+NEO4J_URI
+NEO4J_USERNAME
+NEO4J_PASSWORD
+NEO4J_DATABASE
+```
+
+Set `GEMINI_API_KEY` or `OPENAI_API_KEY` for live Graphiti. Without either, TeamGraph reports fallback mode.
+
+## MCP
+
+Create a key in **API Keys**, then:
+
+```bash
+teamgraph-mcp login --api-key tg_live_xxx --server-url http://localhost:8000
+teamgraph-mcp status
+teamgraph-mcp get-context --query "What changed?" --project "Core Platform"
+teamgraph-mcp upload-context --file ./handoff.md --project "Core Platform"
+teamgraph-mcp serve
+```
+
+See `packages/teamgraph-mcp/README.md` for MCP client configuration.
+
+## Production / EC2
+
+Production compose expects external Postgres and hosted Neo4j:
+
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
-Includes custom Nginx reverse-proxy setup (`deploy/nginx.conf`) and isolated production Dockerfiles for both services.
 
+Allow inbound HTTP/HTTPS, point DNS at the instance, update `deploy/nginx.conf`, and provision its certificate paths. The API container runs Alembic before startup.
+
+## Verify
+
+```bash
+python3 -m compileall -q apps/api
+cd apps/web && npm run lint && npm run build
+cd packages/teamgraph-mcp && npm run build && npm pack --dry-run
+```
+
+Known limitation: Graphiti provider compatibility can vary by `graphiti-core` release; all live calls are isolated behind the service wrapper and degrade to approved-context search.

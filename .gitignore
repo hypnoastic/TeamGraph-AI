@@ -14,10 +14,14 @@ __pycache__/
 venv/
 env/
 .env
+*.pem
+*.pen
+*.zip
 
 # Neo4j
 neo4j_data/
 neo4j_logs/
+postgres_data/
 
 # OS
 .DS_Store
