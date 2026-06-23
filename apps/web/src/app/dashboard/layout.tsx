@@ -64,8 +64,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navigation = (
     <>
-      <Link href="/dashboard" className="flex h-16 items-center border-b-2 border-white px-5 text-xl font-black tracking-[-.05em]">
-        TEAMGRAPH<span className="text-[var(--lime)]">.</span>
+      <Link href="/dashboard" className="flex h-16 items-center border-b-2 border-white px-5 text-xl font-black tracking-[-.05em] text-[var(--paper)]">
+        TEAMGRAPH<span className="text-[var(--cyan)]">.</span>
       </Link>
       <nav className="flex-1 overflow-y-auto p-3">
         {navItems.map((item) => {
