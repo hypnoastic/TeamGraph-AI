@@ -6,7 +6,11 @@ import type { TeamGraphCliConfig } from './types';
 export function resolveConfig(): TeamGraphCliConfig {
   const config = readConfig();
   const apiKey = process.env.TEAMGRAPH_API_KEY || config?.apiKey;
-  const serverUrl = process.env.TEAMGRAPH_SERVER_URL || config?.serverUrl || 'http://localhost:8000';
+  const serverUrl =
+    process.env.TEAMGRAPH_SERVER_URL ||
+    process.env.TEAMGRAPH_URL ||
+    config?.serverUrl ||
+    'http://localhost:8000';
 
   if (!apiKey) {
     throw new Error(

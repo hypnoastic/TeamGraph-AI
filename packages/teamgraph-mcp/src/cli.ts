@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 
 import { getApiClient, resolveConfig } from './apiClient';
-import { getConfigPath, writeConfig } from './configStore';
+import { getConfigPath, readConfig, writeConfig } from './configStore';
 
 function parseOption(args: string[], name: string): string | undefined {
   const flag = `--${name}`;
@@ -28,7 +28,11 @@ function getClaudeConfigPath() {
 
 export async function login(args: string[]) {
   const apiKey = parseOption(args, 'api-key') || process.env.TEAMGRAPH_API_KEY;
-  const serverUrl = parseOption(args, 'server-url') || process.env.TEAMGRAPH_SERVER_URL || 'http://localhost:8000';
+  const serverUrl =
+    parseOption(args, 'server-url') ||
+    process.env.TEAMGRAPH_SERVER_URL ||
+    process.env.TEAMGRAPH_URL ||
+    'http://localhost:8000';
 
   if (!apiKey) {
     console.error('Missing API key. Use `teamgraph-mcp login --api-key <key> [--server-url <url>]`.');
@@ -111,6 +115,13 @@ export async function optimizeGraph() {
 }
 
 export function install(agent: string, apiKey: string) {
+  const savedConfig = readConfig();
+  const serverUrl =
+    process.env.TEAMGRAPH_SERVER_URL ||
+    process.env.TEAMGRAPH_URL ||
+    savedConfig?.serverUrl ||
+    'http://localhost:8000';
+
   if (agent.toLowerCase() === 'claude') {
     try {
       const configPath = getClaudeConfigPath();
@@ -134,7 +145,7 @@ export function install(agent: string, apiKey: string) {
         args: ['serve'],
         env: {
           TEAMGRAPH_API_KEY: apiKey,
-          TEAMGRAPH_SERVER_URL: 'http://localhost:8000',
+          TEAMGRAPH_SERVER_URL: serverUrl,
         },
       };
 
@@ -153,7 +164,7 @@ export function install(agent: string, apiKey: string) {
     console.log('4. Set Type to: command');
     console.log('5. Set Command to: teamgraph-mcp serve');
     console.log(
-      `\nSet TEAMGRAPH_API_KEY="${apiKey}" and TEAMGRAPH_SERVER_URL="http://localhost:8000" in your shell environment.\n`
+      `\nSet TEAMGRAPH_API_KEY="${apiKey}" and TEAMGRAPH_SERVER_URL="${serverUrl}" in your shell environment.\n`
     );
   } else {
     console.error(`Error: Unsupported agent '${agent}'.`);
