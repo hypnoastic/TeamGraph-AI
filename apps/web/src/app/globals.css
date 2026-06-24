@@ -13,6 +13,8 @@
   --line: 2px solid var(--ink);
   --shadow-sm: 4px 4px 0 var(--ink);
   --shadow-lg: 8px 8px 0 var(--ink);
+  --font-space: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-plex: "IBM Plex Mono", Menlo, Monaco, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
