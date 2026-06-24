@@ -1,7 +1,7 @@
-from .base import ConnectorStub
+from .base import ConnectorRecord
 
 
-SLACK_CONNECTOR = ConnectorStub(
+SLACK_CONNECTOR = ConnectorRecord(
     key="slack",
     name="Slack",
     description="Ingest channels, threads, and messages into the TeamGraph live brain.",

@@ -84,5 +84,9 @@ class Settings(BaseSettings):
         alias="GOOGLE_DRIVE_SCOPES",
     )
 
+    notion_client_id: str | None = Field(default=None, alias="NOTION_CLIENT_ID")
+    notion_client_secret: str | None = Field(default=None, alias="NOTION_CLIENT_SECRET")
+    notion_integration_token: str | None = Field(default=None, alias="NOTION_INTEGRATION_TOKEN")
+
 
 settings = Settings()
