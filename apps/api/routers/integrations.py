@@ -32,16 +32,7 @@ def get_integrations(
         select(IntegrationConnection).where(IntegrationConnection.organization_id == user["org_id"])
     ).scalars().all()
     
-    # We still have ConnectorAccount that was used. To avoid breaking UI immediately,
-    # we can also fetch those, or just treat IntegrationConnection as the source of truth.
-    connected_map = {}
-    for conn in rows:
-        connected_map[conn.provider] = type('obj', (object,), {
-            'provider': conn.provider,
-            'status': conn.status,
-            'display_name': conn.display_name,
-            'updated_at': conn.updated_at
-        })()
+    connected_map = {conn.provider: conn for conn in rows}
 
     return {"connectors": list_connectors(connected_map)}
 

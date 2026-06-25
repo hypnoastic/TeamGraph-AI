@@ -16,7 +16,6 @@ const navItems = [
   { name: "Approvals", path: "/dashboard/approvals", icon: ShieldCheck, adminOnly: true },
   { name: "Team", path: "/dashboard/team", icon: Users, adminOnly: true },
   { name: "API Keys", path: "/dashboard/api-keys", icon: Key },
-  { name: "MCP Setup", path: "/dashboard/mcp", icon: Code2 },
   { name: "Connectors", path: "/dashboard/connectors", icon: Plug },
   { name: "Activity", path: "/dashboard/activity", icon: Activity },
   { name: "Settings", path: "/dashboard/settings", icon: Settings },
