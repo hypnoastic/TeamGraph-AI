@@ -21,6 +21,7 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       GRAPHITI_LLM_PROVIDER: ${GRAPHITI_LLM_PROVIDER}
       TEAMGRAPH_API_KEY: ${TEAMGRAPH_API_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     restart: unless-stopped
 
   web:
