@@ -9,6 +9,7 @@ import type { ConnectorRecord } from "@/lib/types";
 export default function ConnectorsPage() {
   const [connectors, setConnectors] = useState<ConnectorRecord[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const refresh = () => {
     apiGet<{ connectors: ConnectorRecord[] }>("/connectors")
@@ -18,6 +19,15 @@ export default function ConnectorsPage() {
 
   useEffect(() => {
     refresh();
+    const rawUser = localStorage.getItem("teamgraph_user");
+    if (rawUser) {
+      try {
+        const parsed = JSON.parse(rawUser);
+        setIsAdmin(parsed.role === "admin");
+      } catch {
+        setIsAdmin(false);
+      }
+    }
   }, []);
 
   const handleConnect = async (provider: string) => {
@@ -85,19 +95,21 @@ export default function ConnectorsPage() {
 
                 {isConnected ? (
                   <button
-                    disabled={loading !== null}
+                    disabled={loading !== null || !isAdmin}
                     onClick={() => handleDisconnect(connector.key)}
-                    className="btn-secondary w-full text-xs font-black py-1.5 shadow-[2px_2px_0_black]"
+                    className="btn-secondary w-full text-xs font-black py-1.5 shadow-[2px_2px_0_black] disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!isAdmin ? "Only administrators can disconnect connectors." : ""}
                   >
-                    {loading === connector.key ? "Disconnecting..." : "Disconnect"}
+                    {!isAdmin ? "Admin Only" : loading === connector.key ? "Disconnecting..." : "Disconnect"}
                   </button>
                 ) : isConfigured ? (
                   <button
-                    disabled={loading !== null}
+                    disabled={loading !== null || !isAdmin}
                     onClick={() => handleConnect(connector.key)}
-                    className="btn-primary w-full text-xs font-black py-1.5"
+                    className="btn-primary w-full text-xs font-black py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={!isAdmin ? "Only administrators can connect connectors." : ""}
                   >
-                    {loading === connector.key ? "Connecting..." : "Connect"}
+                    {!isAdmin ? "Admin Only" : loading === connector.key ? "Connecting..." : "Connect"}
                   </button>
                 ) : (
                   <button

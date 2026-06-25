@@ -32,6 +32,12 @@ def connect_connector(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization administrators can manage connectors."
+        )
+
     if not is_connector_configured(provider):
         raise HTTPException(
             status_code=400,
@@ -73,6 +79,12 @@ def disconnect_connector(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Only organization administrators can manage connectors."
+        )
+
     existing = db.execute(
         select(ConnectorAccount).where(
             ConnectorAccount.organization_id == user["org_id"],
