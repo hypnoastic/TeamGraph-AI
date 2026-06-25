@@ -4,7 +4,7 @@ import path from 'path';
 
 import type { TeamGraphCliConfig } from './types';
 
-const CONFIG_PATH = path.join(os.homedir(), '.teamgraph-mcp.json');
+const CONFIG_PATH = path.join(os.homedir(), '.teamgraph.json');
 
 export function readConfig(): TeamGraphCliConfig | null {
   if (!fs.existsSync(CONFIG_PATH)) return null;

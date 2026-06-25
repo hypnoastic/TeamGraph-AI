@@ -40,16 +40,16 @@ export default function McpPage() {
   }, []);
 
   const commands = [
-    "npm install -g @teamgraph/mcp",
-    `teamgraph-mcp login --api-key ${hasKeys ? "tg_live_xxx" : "<your_api_key>"} --server-url ${apiUrl}`,
-    "teamgraph-mcp status",
-    "teamgraph-mcp serve",
+    "npm install -g teamgraph",
+    `teamgraph login --api-key ${hasKeys ? "tg_live_xxx" : "<your_api_key>"} --server-url ${apiUrl}`,
+    "teamgraph status",
+    "teamgraph serve",
   ];
 
   const clientConfig = `{
   "mcpServers": {
     "teamgraph-live-brain": {
-      "command": "teamgraph-mcp",
+      "command": "teamgraph",
       "args": ["serve"],
       "env": {
         "TEAMGRAPH_SERVER_URL": "${apiUrl}",
@@ -141,7 +141,7 @@ export default function McpPage() {
               💡 <strong>Tip:</strong> You can also automatically configure Claude Desktop by running:
             </p>
             <code className="mono block bg-white/80 p-2 border border-black/10 mt-1 select-all font-bold">
-              {`teamgraph-mcp install claude api="${hasKeys ? "tg_live_xxx" : "<your_api_key>"}"`}
+              {`teamgraph install claude api="${hasKeys ? "tg_live_xxx" : "<your_api_key>"}"`}
             </code>
           </div>
         </div>

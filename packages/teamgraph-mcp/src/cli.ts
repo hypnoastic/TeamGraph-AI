@@ -35,7 +35,7 @@ export async function login(args: string[]) {
     'http://localhost:8000';
 
   if (!apiKey) {
-    console.error('Missing API key. Use `teamgraph-mcp login --api-key <key> [--server-url <url>]`.');
+    console.error('Missing API key. Use `teamgraph login --api-key <key> [--server-url <url>]`.');
     process.exit(1);
   }
 
@@ -63,7 +63,7 @@ export async function getContext(args: string[]) {
   const query = parseOption(args, 'query');
   const project = parseOption(args, 'project');
   if (!query) {
-    console.error('Missing query. Use `teamgraph-mcp get-context --query "..." [--project "..."]`.');
+    console.error('Missing query. Use `teamgraph get-context --query "..." [--project "..."]`.');
     process.exit(1);
   }
 
@@ -141,7 +141,7 @@ export function install(agent: string, apiKey: string) {
       if (!config.mcpServers) config.mcpServers = {};
 
       config.mcpServers['teamgraph-live-brain'] = {
-        command: 'teamgraph-mcp',
+        command: 'teamgraph',
         args: ['serve'],
         env: {
           TEAMGRAPH_API_KEY: apiKey,
@@ -150,19 +150,19 @@ export function install(agent: string, apiKey: string) {
       };
 
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-      console.log('Success: teamgraph-mcp successfully installed into Claude Desktop.');
+      console.log('Success: teamgraph successfully installed into Claude Desktop.');
       console.log(`Config updated at: ${configPath}`);
       console.log('Please restart Claude Desktop for the changes to take effect.');
     } catch (error: unknown) {
       console.error(`Failed to install for Claude: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else if (agent.toLowerCase() === 'cursor') {
-    console.log('\nTo install teamgraph-mcp in Cursor:');
+    console.log('\nTo install teamgraph in Cursor:');
     console.log('1. Open Cursor Settings -> Features -> MCP');
     console.log("2. Click '+ Add New MCP Server'");
     console.log('3. Set Name to: TeamGraph Live Brain');
     console.log('4. Set Type to: command');
-    console.log('5. Set Command to: teamgraph-mcp serve');
+    console.log('5. Set Command to: teamgraph serve');
     console.log(
       `\nSet TEAMGRAPH_API_KEY="${apiKey}" and TEAMGRAPH_SERVER_URL="${serverUrl}" in your shell environment.\n`
     );
@@ -192,7 +192,7 @@ export function uninstall(agent: string) {
       if (config.mcpServers && config.mcpServers['teamgraph-live-brain']) {
         delete config.mcpServers['teamgraph-live-brain'];
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
-        console.log('Success: teamgraph-mcp successfully uninstalled from Claude Desktop.');
+        console.log('Success: teamgraph successfully uninstalled from Claude Desktop.');
         console.log('Please restart Claude Desktop for the changes to take effect.');
       } else {
         console.log('TeamGraph MCP was not installed in Claude Desktop. Nothing to do.');
@@ -207,15 +207,15 @@ export function uninstall(agent: string) {
 
 export function printUsage() {
   console.error('Usage:');
-  console.error('  teamgraph-mcp serve');
-  console.error('  teamgraph-mcp login --api-key <key> [--server-url <url>]');
-  console.error('  teamgraph-mcp status');
-  console.error('  teamgraph-mcp get-context --query "<text>" [--project "<name>"]');
-  console.error('  teamgraph-mcp upload-context --text "<text>" --project "<name>" [--title "<name>"]');
-  console.error('  teamgraph-mcp upload-context --file ./context.md --project "<name>" [--title "<name>"]');
-  console.error('  teamgraph-mcp list-context-sources');
-  console.error('  teamgraph-mcp list-projects');
-  console.error('  teamgraph-mcp optimize-graph');
-  console.error('  teamgraph-mcp install <agent> api="<key>"');
-  console.error('  teamgraph-mcp uninstall <agent>');
+  console.error('  teamgraph serve');
+  console.error('  teamgraph login --api-key <key> [--server-url <url>]');
+  console.error('  teamgraph status');
+  console.error('  teamgraph get-context --query "<text>" [--project "<name>"]');
+  console.error('  teamgraph upload-context --text "<text>" --project "<name>" [--title "<name>"]');
+  console.error('  teamgraph upload-context --file ./context.md --project "<name>" [--title "<name>"]');
+  console.error('  teamgraph list-context-sources');
+  console.error('  teamgraph list-projects');
+  console.error('  teamgraph optimize-graph');
+  console.error('  teamgraph install <agent> api="<key>"');
+  console.error('  teamgraph uninstall <agent>');
 }

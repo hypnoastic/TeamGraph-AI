@@ -12,7 +12,7 @@ export default function ConnectorsPage() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   const refresh = () => {
-    apiGet<{ connectors: ConnectorRecord[] }>("/connectors")
+    apiGet<{ connectors: ConnectorRecord[] }>("/integrations")
       .then((data) => setConnectors(data.connectors))
       .catch(() => setConnectors([]));
   };
@@ -33,11 +33,10 @@ export default function ConnectorsPage() {
   const handleConnect = async (provider: string) => {
     setLoading(provider);
     try {
-      await apiPost(`/connectors/${provider}/connect`);
-      refresh();
+      const data = await apiGet<{ url: string }>(`/integrations/${provider}/connect`);
+      window.location.href = data.url;
     } catch (e) {
       alert("Failed to connect: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
       setLoading(null);
     }
   };
@@ -45,7 +44,7 @@ export default function ConnectorsPage() {
   const handleDisconnect = async (provider: string) => {
     setLoading(provider);
     try {
-      await apiPost(`/connectors/${provider}/disconnect`);
+      await apiPost(`/integrations/${provider}/disconnect`);
       refresh();
     } catch (e) {
       alert("Failed to disconnect: " + (e instanceof Error ? e.message : String(e)));

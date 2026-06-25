@@ -14,7 +14,7 @@ export function resolveConfig(): TeamGraphCliConfig {
 
   if (!apiKey) {
     throw new Error(
-      'TEAMGRAPH_API_KEY is not configured. Run `teamgraph-mcp login --api-key <key>` or set TEAMGRAPH_API_KEY.'
+      'TEAMGRAPH_API_KEY is not configured. Run `teamgraph login --api-key <key>` or set TEAMGRAPH_API_KEY.'
     );
   }
 

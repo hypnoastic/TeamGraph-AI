@@ -29,8 +29,11 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        API_TARGET: http://api:8000
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL}
+      API_TARGET: http://api:8000
     depends_on:
       - api
     restart: unless-stopped

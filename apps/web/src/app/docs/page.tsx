@@ -26,7 +26,7 @@ export default function PublicDocsPage() {
   const configExample = `{
   "mcpServers": {
     "teamgraph-live-brain": {
-      "command": "teamgraph-mcp",
+      "command": "teamgraph",
       "args": ["serve"],
       "env": {
         "TEAMGRAPH_SERVER_URL": "${apiUrl}",
@@ -97,9 +97,9 @@ export default function PublicDocsPage() {
               </p>
               
               <div className="mt-4 flex items-center justify-between bg-black text-white p-3 border-2 border-black font-bold text-xs md:text-sm">
-                <code className="mono text-[var(--lime)] select-all">npm install -g @teamgraph/mcp</code>
+                <code className="mono text-[var(--lime)] select-all">npm install -g teamgraph</code>
                 <button
-                  onClick={() => handleCopy("npm install -g @teamgraph/mcp", "npm-install")}
+                  onClick={() => handleCopy("npm install -g teamgraph", "npm-install")}
                   className="text-zinc-400 hover:text-white flex items-center gap-1 shrink-0 ml-3"
                 >
                   {copiedId === "npm-install" ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
@@ -151,7 +151,7 @@ export default function PublicDocsPage() {
                     <li>Navigate to <strong>Cursor Settings &gt; Features &gt; MCP</strong>.</li>
                     <li>Click <strong>+ Add New MCP Server</strong>.</li>
                     <li>Set Name: <code className="mono font-bold bg-white px-1">TeamGraph</code>, Type: <code className="mono font-bold bg-white px-1">command</code>.</li>
-                    <li>Command: <code className="mono font-bold bg-white px-1 select-all">teamgraph-mcp serve</code></li>
+                    <li>Command: <code className="mono font-bold bg-white px-1 select-all">teamgraph serve</code></li>
                     <li>
                       Add Environment Variables:
                       <ul className="list-disc pl-4 mt-1 space-y-1">
@@ -182,9 +182,9 @@ export default function PublicDocsPage() {
                 <div>
                   <h4 className="text-xs font-black uppercase text-[var(--muted)] mb-1">1. Run Login Authentication test</h4>
                   <div className="flex items-center justify-between bg-black text-white p-3 border-2 border-black font-bold text-xs select-all">
-                    <code className="mono text-[var(--lime)]">{`teamgraph-mcp login --api-key tg_live_xxx --server-url ${apiUrl}`}</code>
+                    <code className="mono text-[var(--lime)]">{`teamgraph login --api-key tg_live_xxx --server-url ${apiUrl}`}</code>
                     <button
-                      onClick={() => handleCopy(`teamgraph-mcp login --api-key tg_live_xxx --server-url ${apiUrl}`, "test-login")}
+                      onClick={() => handleCopy(`teamgraph login --api-key tg_live_xxx --server-url ${apiUrl}`, "test-login")}
                       className="text-zinc-400 hover:text-white flex items-center gap-1 shrink-0 ml-3"
                     >
                       {copiedId === "test-login" ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
@@ -195,9 +195,9 @@ export default function PublicDocsPage() {
                 <div>
                   <h4 className="text-xs font-black uppercase text-[var(--muted)] mb-1">2. Run Connection Status test</h4>
                   <div className="flex items-center justify-between bg-black text-white p-3 border-2 border-black font-bold text-xs select-all">
-                    <code className="mono text-[var(--lime)]">teamgraph-mcp status</code>
+                    <code className="mono text-[var(--lime)]">teamgraph status</code>
                     <button
-                      onClick={() => handleCopy("teamgraph-mcp status", "test-status")}
+                      onClick={() => handleCopy("teamgraph status", "test-status")}
                       className="text-zinc-400 hover:text-white flex items-center gap-1 shrink-0 ml-3"
                     >
                       {copiedId === "test-status" ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}

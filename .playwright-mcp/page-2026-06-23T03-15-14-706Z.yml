@@ -1,0 +1,23 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - link "TEAMGRAPH." [ref=e4] [cursor=pointer]:
+        - /url: /
+      - heading "Memory your agents can trust." [level=1] [ref=e5]
+      - generic [ref=e6]: GRAPHITI / NEO4J / TEAMGRAPH
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - button "login" [ref=e10] [cursor=pointer]
+        - button "signup" [active] [ref=e11] [cursor=pointer]
+      - textbox "Full name" [ref=e30]
+      - textbox "Email" [ref=e12]
+      - textbox "Password" [ref=e13]
+      - button "Create account" [ref=e31] [cursor=pointer]
+      - generic [ref=e15]: Demo access
+      - generic [ref=e16]:
+        - button "admin" [ref=e17] [cursor=pointer]
+        - button "member" [ref=e18] [cursor=pointer]
+        - button "demo" [ref=e19] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e25] [cursor=pointer]:
+    - img [ref=e26]
+  - alert [ref=e29]

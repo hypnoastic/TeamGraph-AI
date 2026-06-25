@@ -14,11 +14,11 @@ from routers import (
     approvals,
     auth,
     brain,
-    connectors,
     context,
     dashboard,
     graph,
     health,
+    integrations,
     mcp,
     organizations,
     projects,
@@ -80,7 +80,7 @@ app.include_router(brain.router)
 app.include_router(graph.router)
 app.include_router(activity.router)
 app.include_router(team.router)
-app.include_router(connectors.router)
+app.include_router(integrations.router)
 app.include_router(settings_router.router)
 app.include_router(mcp.router)
 

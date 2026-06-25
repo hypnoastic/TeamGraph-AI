@@ -21,6 +21,7 @@ class Settings(BaseSettings):
 
     api_port: int = Field(default=8000, alias="API_PORT")
     secret_key: str = Field(default="demo_secret_key_change_me", alias="SECRET_KEY")
+    encryption_key: str = Field(default="X9_u4aBf7_x8oT8s3mF2lH9u1v2X3n4a=", alias="ENCRYPTION_KEY")
     environment: str = Field(default="local", alias="ENVIRONMENT")
     frontend_origin: str = Field(default="http://localhost:3000", alias="FRONTEND_ORIGIN")
     public_base_url: str = Field(default="http://localhost:3000", alias="PUBLIC_BASE_URL")

@@ -7,7 +7,7 @@ def is_connector_configured(key: str) -> bool:
         return bool(settings.github_client_id and settings.github_client_secret)
     elif key == "slack":
         return bool(settings.slack_client_id and settings.slack_client_secret)
-    elif key == "google-drive":
+    elif key == "google":
         return bool(settings.google_client_id and settings.google_client_secret)
     elif key == "notion":
         return bool(
@@ -20,7 +20,7 @@ def is_connector_configured(key: str) -> bool:
 CONNECTORS = [
     ("github", "GitHub", "Repositories, pull requests, issues, and docs."),
     ("slack", "Slack", "Channels, threads, and team conversations."),
-    ("google-drive", "Google Drive", "Documents, folders, and shared knowledge."),
+    ("google", "Google Drive", "Documents, folders, and shared knowledge."),
     ("notion", "Notion", "Pages and workspace knowledge."),
     ("jira", "Jira", "Tickets, epics, and decisions."),
     ("linear", "Linear", "Issues, projects, and roadmaps."),
@@ -48,6 +48,7 @@ def list_connectors(connected_map: dict = None) -> list[dict]:
         else:
             state = "coming_soon"
             todo = "Coming soon (requires env keys)"
+
 
         res.append(
             ConnectorRecord(

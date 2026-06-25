@@ -6,21 +6,21 @@ MCP server and CLI for the TeamGraph AI organization brain.
 
 ```bash
 npm install -g @teamgraph/mcp
-teamgraph-mcp login --api-key tg_live_xxx --server-url https://api.example.com
-teamgraph-mcp status
-teamgraph-mcp serve
+teamgraph login --api-key tg_live_xxx --server-url https://api.example.com
+teamgraph status
+teamgraph serve
 ```
 
-The local config is stored at `~/.teamgraph-mcp.json` with owner-only permissions. `TEAMGRAPH_API_KEY` and `TEAMGRAPH_SERVER_URL` override that file.
+The local config is stored at `~/.teamgraph.json` with owner-only permissions. `TEAMGRAPH_API_KEY` and `TEAMGRAPH_SERVER_URL` override that file.
 
 ## CLI
 
 ```bash
-teamgraph-mcp get-context --query "What changed?" --project "Core Platform"
-teamgraph-mcp upload-context --text "Decision: ship v2" --project "Core Platform"
-teamgraph-mcp upload-context --file ./handoff.md --project "Core Platform"
-teamgraph-mcp list-projects
-teamgraph-mcp list-context-sources
+teamgraph get-context --query "What changed?" --project "Core Platform"
+teamgraph upload-context --text "Decision: ship v2" --project "Core Platform"
+teamgraph upload-context --file ./handoff.md --project "Core Platform"
+teamgraph list-projects
+teamgraph list-context-sources
 ```
 
 ## MCP client config
@@ -29,7 +29,7 @@ teamgraph-mcp list-context-sources
 {
   "mcpServers": {
     "teamgraph": {
-      "command": "teamgraph-mcp",
+      "command": "teamgraph",
       "args": ["serve"],
       "env": {
         "TEAMGRAPH_API_KEY": "tg_live_xxx",
