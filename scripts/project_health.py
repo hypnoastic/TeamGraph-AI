@@ -192,9 +192,41 @@ def run_coverage_checks() -> tuple[list[CheckResult], float, dict]:
     else:
         results.append(CheckResult("API test coverage", False, r["stderr"][:300], risk="high", command=r["command"], duration=r["duration_s"]))
 
+    # --- Web Vitest coverage ---
+    r2 = _run(["npm", "run", "test:coverage", "--", "--reporter=json"], cwd=WEB_DIR, timeout=120)
+    web_statement = 0
+    if r2["passed"] or "Coverage enabled" in r2["stdout"] or "Coverage enabled" in r2["stderr"]:
+        try:
+            # We look for the JSON blob in the output
+            # Vitest JSON reporter prints a JSON object with a "total" key
+            match = re.search(r'(\{.*"total":.*"statements":.*\})', r2["stdout"], re.DOTALL)
+            if match:
+                web_cov_data = json.loads(match.group(1))
+                web_statement = web_cov_data.get("total", {}).get("statements", {}).get("pct", 0)
+                cov_data["web_statement"] = web_statement
+                results.append(CheckResult("Web test coverage", True, f"Statement coverage: {web_statement}%", command=r2["command"], duration=r2["duration_s"]))
+            else:
+                # Fallback text parsing if json fails
+                for line in r2["stdout"].splitlines():
+                    if "All files" in line:
+                        parts = [p.strip() for p in line.split("|")]
+                        if len(parts) > 2:
+                            web_statement = float(parts[1])
+                            cov_data["web_statement"] = web_statement
+                            break
+                results.append(CheckResult("Web test coverage", True, f"Statement coverage: {web_statement}%", command=r2["command"], duration=r2["duration_s"]))
+        except Exception as e:
+            results.append(CheckResult("Web test coverage", False, f"Failed to parse coverage: {e}", risk="high", command=r2["command"], duration=r2["duration_s"]))
+    else:
+        results.append(CheckResult("Web test coverage", False, r2["stderr"][:300], risk="high", command=r2["command"], duration=r2["duration_s"]))
+
     # Score: scale statement coverage to 20 points (target 60% for this project stage)
     target = 60
-    achieved = min(cov_data["statement"], 100)
+    api_achieved = min(cov_data.get("statement", 0), 100)
+    web_achieved = min(cov_data.get("web_statement", 0), 100)
+    
+    # Blended score (for now, weight API slightly higher or just average them)
+    achieved = (api_achieved + web_achieved) / 2
     score = round(min((achieved / target) * 20, 20), 1)
     return results, score, cov_data
 
@@ -489,7 +521,8 @@ def generate_markdown(data: dict) -> str:
         lines += [
             "## 📈 Coverage Summary",
             "",
-            f"- **Statement Coverage**: {cov.get('statement', 'N/A')}%",
+            f"- **API Statement Coverage**: {cov.get('statement', 'N/A')}%",
+            f"- **Web Statement Coverage**: {cov.get('web_statement', 'N/A')}%",
             f"- **Target**: 60% (current project stage)",
             "",
         ]

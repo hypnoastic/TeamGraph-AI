@@ -1,13 +1,19 @@
-.PHONY: test lint typecheck build health security test\:coverage test\:api test\:web
+.PHONY: test lint typecheck build health security test\:coverage test\:api test\:web test\:coverage\:web
 
 # ─── Test ─────────────────────────────────────────────────────────────
-test: test\:api
+test: test\:api test\:web
 
 test\:api:
 	cd apps/api && python -m pytest tests/ -v --tb=short
 
+test\:web:
+	cd apps/web && npm run test
+
 test\:coverage:
 	cd apps/api && python -m pytest tests/ --cov=. --cov-report=term-missing --cov-report=html:../../reports/latest/htmlcov -q
+
+test\:coverage\:web:
+	cd apps/web && npm run test:coverage
 
 # ─── Lint ─────────────────────────────────────────────────────────────
 lint: lint\:api lint\:web
