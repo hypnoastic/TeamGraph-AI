@@ -1,90 +1,70 @@
 import os
-import unittest
 
-from fastapi.testclient import TestClient
+from models import ApiKeyRecord
+from postgres import SessionLocal
 
-from main import app
-from models import ApiKeyRecord, Base
-from postgres import SessionLocal, engine
+def test_auth_organization_context_and_mcp(client):
+    signup = client.post(
+        "/auth/signup",
+        json={"name": "Test Admin", "email": "admin@example.com", "password": "password123"},
+    )
+    assert signup.status_code == 200, signup.text
+    token = signup.json()["token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert signup.json()["user"]["onboarding_required"]
 
+    setup = client.post(
+        "/onboarding/organization",
+        headers=headers,
+        json={"organization_name": "Test Lab", "project_name": "Core Platform"},
+    )
+    assert setup.status_code == 200, setup.text
+    project_id = setup.json()["project"]["id"]
 
-class CoreFlowTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        Base.metadata.create_all(bind=engine)
-        cls.client = TestClient(app)
+    upload = client.post(
+        "/context/upload",
+        headers=headers,
+        json={
+            "title": "Release process",
+            "content": "Releases use a staged rollout with health checks and an automatic rollback window.",
+            "project": project_id,
+            "visibility": "project",
+        },
+    )
+    assert upload.status_code == 200, upload.text
+    assert upload.json()["decision"] == "auto_curate"
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.client.close()
-        engine.dispose()
-        os.unlink(database_file.name)
+    risky = client.post(
+        "/context/upload",
+        headers=headers,
+        json={
+            "title": "Short note",
+            "content": "Needs review.",
+            "project": project_id,
+            "visibility": "project",
+        },
+    )
+    assert risky.status_code == 200, risky.text
+    assert risky.json()["decision"] == "review"
 
-    def test_auth_organization_context_and_mcp(self):
-        signup = self.client.post(
-            "/auth/signup",
-            json={"name": "Test Admin", "email": "admin@example.com", "password": "password123"},
-        )
-        self.assertEqual(signup.status_code, 200, signup.text)
-        token = signup.json()["token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        self.assertTrue(signup.json()["user"]["onboarding_required"])
+    approvals = client.get("/approvals/", headers=headers)
+    assert approvals.status_code == 200, approvals.text
+    assert len(approvals.json()) == 1
 
-        setup = self.client.post(
-            "/onboarding/organization",
-            headers=headers,
-            json={"organization_name": "Test Lab", "project_name": "Core Platform"},
-        )
-        self.assertEqual(setup.status_code, 200, setup.text)
-        project_id = setup.json()["project"]["id"]
+    key_response = client.post(
+        "/api-keys/",
+        headers=headers,
+        json={"purpose": "Test agent", "scopes": ["context.read", "context.write"]},
+    )
+    assert key_response.status_code == 200, key_response.text
+    raw_key = key_response.json()["raw_key"]
+    
+    with SessionLocal() as session:
+        stored = session.get(ApiKeyRecord, key_response.json()["id"])
+        assert stored is not None
+        assert stored.key_hash != raw_key
 
-        upload = self.client.post(
-            "/context/upload",
-            headers=headers,
-            json={
-                "title": "Release process",
-                "content": "Releases use a staged rollout with health checks and an automatic rollback window.",
-                "project": project_id,
-                "visibility": "project",
-            },
-        )
-        self.assertEqual(upload.status_code, 200, upload.text)
-        self.assertEqual(upload.json()["decision"], "auto_curate")
-
-        risky = self.client.post(
-            "/context/upload",
-            headers=headers,
-            json={
-                "title": "Short note",
-                "content": "Needs review.",
-                "project": project_id,
-                "visibility": "project",
-            },
-        )
-        self.assertEqual(risky.status_code, 200, risky.text)
-        self.assertEqual(risky.json()["decision"], "review")
-
-        approvals = self.client.get("/approvals/", headers=headers)
-        self.assertEqual(approvals.status_code, 200, approvals.text)
-        self.assertEqual(len(approvals.json()), 1)
-
-        key_response = self.client.post(
-            "/api-keys/",
-            headers=headers,
-            json={"purpose": "Test agent", "scopes": ["context.read", "context.write"]},
-        )
-        self.assertEqual(key_response.status_code, 200, key_response.text)
-        raw_key = key_response.json()["raw_key"]
-        with SessionLocal() as session:
-            stored = session.get(ApiKeyRecord, key_response.json()["id"])
-            self.assertIsNotNone(stored)
-            self.assertNotEqual(stored.key_hash, raw_key)
-
-        mcp_headers = {"Authorization": f"Bearer {raw_key}"}
-        projects = self.client.get("/mcp/tool/list-projects", headers=mcp_headers)
-        self.assertEqual(projects.status_code, 200, projects.text)
-        self.assertEqual(projects.json()["projects"][0]["name"], "Core Platform")
-
-
-if __name__ == "__main__":
-    unittest.main()
+    mcp_headers = {"Authorization": f"Bearer {raw_key}"}
+    projects = client.get("/mcp/tool/list-projects", headers=mcp_headers)
+    assert projects.status_code == 200, projects.text
+    assert projects.json()["projects"][0]["name"] == "Core Platform"
