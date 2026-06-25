@@ -3,7 +3,7 @@
 import { Copy, Trash2, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
-import { apiDelete, apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import type { Project, TeamMember } from "@/lib/types";
 
 export default function TeamPage() {
@@ -24,7 +24,7 @@ export default function TeamPage() {
   };
 
   const remove = async (id: string) => { await apiDelete(`/team/${id}`); await refresh(); };
-  const updateRole = async (id: string, newRole: string) => { await apiPost(`/team/${id}`, { role: newRole, project_ids: projects.map((p) => p.id) }, true, "PATCH"); await refresh(); };
+  const updateRole = async (id: string, newRole: string) => { await apiPatch(`/team/${id}`, { role: newRole, project_ids: projects.map((p) => p.id) }); await refresh(); };
 
   return (
     <PageShell title="Team" description="Members inherit only assigned project access.">

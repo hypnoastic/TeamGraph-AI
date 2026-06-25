@@ -1,15 +1,5 @@
 import os
-import tempfile
 import unittest
-
-
-database_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-database_file.close()
-os.environ["DATABASE_URL"] = f"sqlite:///{database_file.name}"
-os.environ["DEMO_MODE"] = "false"
-os.environ["GEMINI_API_KEY"] = ""
-os.environ["OPENAI_API_KEY"] = ""
-os.environ["NEO4J_URI"] = "bolt://127.0.0.1:1"
 
 from fastapi.testclient import TestClient
 
