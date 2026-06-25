@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/hypnoastic/teamgraph-api:latest
     environment:
       API_PORT: 8000
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
@@ -26,11 +24,7 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        API_TARGET: http://api:8000
+    image: ghcr.io/hypnoastic/teamgraph-web:latest
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL}
       API_TARGET: http://api:8000
