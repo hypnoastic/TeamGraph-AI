@@ -1,5 +1,9 @@
 # TeamGraph AI
 
+[![Project Health](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/project-health.yml/badge.svg)](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/project-health.yml)
+[![Build & Deploy](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/deploy.yml/badge.svg)](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](packages/teamgraph-mcp/LICENSE)
+
 TeamGraph is a governed live organization brain. Graphiti provides temporal memory, Neo4j stores the knowledge graph, and TeamGraph adds Postgres-backed identity, permissions, approvals, API keys, and audit controls.
 
 ## Architecture
@@ -96,6 +100,21 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
 
 Allow inbound HTTP/HTTPS, point DNS at the instance, update `deploy/nginx.conf`, and provision its certificate paths. The API container runs Alembic before startup.
+
+## Quality & Testing
+
+TeamGraph uses automated project health reporting to ensure code quality, security, and reliability across all components.
+
+```bash
+make health         # Generate full health report (MD + JSON + HTML)
+make test           # Run API tests
+make test:coverage  # Coverage report
+make lint           # Lint all components
+make build          # Build web + MCP
+make security       # Security audits
+```
+
+Reports are generated to `reports/latest/`. See [docs/testing-matrix.md](docs/testing-matrix.md) for the full testing methodology.
 
 ## Verify
 
