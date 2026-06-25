@@ -1,4 +1,6 @@
 import base64
+import smtplib
+import os
 from email.message import EmailMessage
 
 import google.auth
@@ -9,20 +11,20 @@ from config import settings
 
 class EmailService:
     def __init__(self):
-        try:
-            self.credentials, self.project_id = google.auth.default(
-                scopes=["https://www.googleapis.com/auth/gmail.send"]
-            )
-            self.service = build('gmail', 'v1', credentials=self.credentials)
-        except Exception as e:
-            print(f"Warning: Failed to initialize Google credentials for EmailService. {e}")
-            self.service = None
+        self.smtp_user = os.environ.get("GMAIL_SMTP_USER")
+        self.smtp_password = os.environ.get("GMAIL_SMTP_PASSWORD")
+        self.service = None
+
+        if not self.smtp_user:
+            try:
+                self.credentials, self.project_id = google.auth.default(
+                    scopes=["https://www.googleapis.com/auth/gmail.send"]
+                )
+                self.service = build('gmail', 'v1', credentials=self.credentials)
+            except Exception as e:
+                print(f"Warning: Failed to initialize Google credentials for EmailService. {e}")
 
     def send_invitation_email(self, to_email: str, invite_url: str, role: str):
-        if not self.service:
-            print(f"Mock Email sent to {to_email}. Role: {role}. URL: {invite_url}")
-            return False
-
         message = EmailMessage()
         
         html_content = f"""
@@ -40,13 +42,26 @@ class EmailService:
 
         message.set_content("Please enable HTML to view this email.")
         message.add_alternative(html_content, subtype='html')
-
         message["To"] = to_email
-        message["From"] = "no-reply@teamgraph.local"
+        message["From"] = self.smtp_user or "no-reply@teamgraph.local"
         message["Subject"] = "You're invited to TeamGraph"
 
-        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        if self.smtp_user and self.smtp_password:
+            try:
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                    server.login(self.smtp_user, self.smtp_password)
+                    server.send_message(message)
+                print(f"SMTP Email sent to {to_email}")
+                return True
+            except Exception as e:
+                print(f"SMTP error: {e}")
+                return False
 
+        if not self.service:
+            print(f"Mock Email sent to {to_email}. Role: {role}. URL: {invite_url}")
+            return False
+
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         create_message = {"raw": encoded_message}
 
         try:
@@ -63,3 +78,4 @@ class EmailService:
             return False
 
 email_service = EmailService()
+
