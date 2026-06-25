@@ -73,11 +73,21 @@ def create_invitation(
     )
     db.add(invitation)
     db.commit()
+    
+    invite_url = f"{settings.public_base_url}/login?invite={raw_token}"
+    
+    from services.email import email_service
+    email_service.send_invitation_email(
+        to_email=invitation.email,
+        invite_url=invite_url,
+        role=invitation.role
+    )
+
     return {
         "id": invitation.id,
         "email": invitation.email,
         "status": invitation.status,
-        "invite_url": f"{settings.public_base_url}/login?invite={raw_token}",
+        "invite_url": invite_url,
         "expires_at": invitation.expires_at.isoformat(),
     }
 

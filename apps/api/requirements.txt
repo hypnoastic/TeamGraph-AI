@@ -17,3 +17,4 @@ httpx>=0.25.0
 google-auth
 httpx
 PyJWT
+google-api-python-client

@@ -4,7 +4,7 @@ from config import settings
 
 def is_connector_configured(key: str) -> bool:
     if key == "github":
-        return bool(settings.github_client_id and settings.github_client_secret)
+        return bool(settings.github_client_id and (settings.github_client_secret or settings.github_private_key))
     elif key == "slack":
         return bool(settings.slack_client_id and settings.slack_client_secret)
     elif key == "google":
