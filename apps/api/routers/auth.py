@@ -14,7 +14,9 @@ from services.activity_service import record_activity
 from services.postgres_seed import hash_password, verify_password
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
-from config import settingsrouter = APIRouter(prefix="/auth", tags=["auth"])
+from config import settings
+
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
