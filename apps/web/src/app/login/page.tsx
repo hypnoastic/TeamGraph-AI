@@ -6,7 +6,6 @@ import { useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
 import type { SessionUser } from "@/lib/types";
 import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
-import type { SessionUser } from "@/lib/types";
 
 type AuthMode = "login" | "signup";
 
