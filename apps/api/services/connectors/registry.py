@@ -29,19 +29,37 @@ CONNECTORS = [
 ]
 
 
-def list_connectors() -> list[dict]:
+def list_connectors(connected_map: dict = None) -> list[dict]:
+    if connected_map is None:
+        connected_map = {}
     res = []
     for key, name, description in CONNECTORS:
         configured = is_connector_configured(key)
+        conn_db = connected_map.get(key)
+        is_connected = conn_db is not None and conn_db.status == "connected"
+
+        # Determine state and todo
+        if is_connected:
+            state = "connected"
+            todo = f"Connected to {conn_db.display_name or 'Workspace'}"
+        elif configured:
+            state = "configured"
+            todo = "Ready to connect"
+        else:
+            state = "coming_soon"
+            todo = "Coming soon (requires env keys)"
+
         res.append(
             ConnectorRecord(
                 key=key,
                 name=name,
                 description=description,
-                state="active" if configured else "coming_soon",
+                state=state,
                 mode="live" if configured else "placeholder",
-                todo="Configured" if configured else "Coming soon",
+                todo=todo,
                 ready=configured,
+                connected_account=conn_db.display_name if is_connected else None,
+                last_synced_at=conn_db.last_synced_at.isoformat() if (is_connected and conn_db.last_synced_at) else None,
             ).__dict__
         )
     return res
