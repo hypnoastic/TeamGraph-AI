@@ -30,3 +30,6 @@ postgres_data/
 *.sqlite
 *.sqlite3
 .pytest_cache/
+
+# Generated reports
+reports/
