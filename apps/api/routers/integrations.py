@@ -6,13 +6,18 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
+from pydantic import BaseModel
+from typing import List
+
 from auth.demo_auth import get_current_user
 from postgres import get_db
 from models import IntegrationOAuthState, IntegrationConnection, ConnectorAccount
 from config import settings
-from utils.encryption import encrypt_token
+from utils.encryption import encrypt_token, decrypt_token
 from services.integrations.registry import get_provider
 from services.connectors.registry import list_connectors
+from services.integrations.github import get_installation_token
+import httpx
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -182,3 +187,78 @@ def disconnect_integration(
     db.commit()
     
     return {"status": "success", "message": f"Disconnected {provider} successfully."}
+
+
+class RepoSelection(BaseModel):
+    repositories: List[str]
+
+@router.get("/github/repositories")
+async def get_github_repositories(
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conn = db.execute(
+        select(IntegrationConnection).where(
+            IntegrationConnection.organization_id == user["org_id"],
+            IntegrationConnection.provider == "github",
+            IntegrationConnection.status == "connected"
+        )
+    ).scalar_one_or_none()
+
+    if not conn or not conn.access_token_enc:
+        raise HTTPException(status_code=404, detail="GitHub is not connected")
+
+    installation_id = decrypt_token(conn.access_token_enc)
+    
+    try:
+        install_token = get_installation_token(installation_id)
+        headers = {
+            "Authorization": f"Bearer {install_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.github.com/installation/repositories",
+                headers=headers
+            )
+            response.raise_for_status()
+            data = response.json()
+            repos = [{"id": r["id"], "full_name": r["full_name"]} for r in data.get("repositories", [])]
+            
+            # Get currently saved selections
+            selected = []
+            if conn.config_json:
+                config = json.loads(conn.config_json)
+                selected = config.get("repositories", [])
+                
+            return {"repositories": repos, "selected": selected}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch repositories: {str(e)}")
+
+
+@router.post("/github/repositories/select")
+def select_github_repositories(
+    selection: RepoSelection,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    conn = db.execute(
+        select(IntegrationConnection).where(
+            IntegrationConnection.organization_id == user["org_id"],
+            IntegrationConnection.provider == "github",
+            IntegrationConnection.status == "connected"
+        )
+    ).scalar_one_or_none()
+
+    if not conn:
+        raise HTTPException(status_code=404, detail="GitHub is not connected")
+
+    config = {}
+    if conn.config_json:
+        config = json.loads(conn.config_json)
+        
+    config["repositories"] = selection.repositories
+    conn.config_json = json.dumps(config)
+    db.commit()
+    
+    return {"status": "success"}

@@ -224,6 +224,7 @@ class IntegrationConnection(Base):
     external_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    config_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     connected_by_user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)
     
