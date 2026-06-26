@@ -3,12 +3,14 @@ from .github import GitHubProvider
 from .slack import SlackProvider
 from .notion import NotionProvider
 from .google import GoogleDriveProvider
+from .gmail import GmailProvider
 
 _PROVIDERS = {
     "github": GitHubProvider(),
     "slack": SlackProvider(),
     "notion": NotionProvider(),
     "google": GoogleDriveProvider(),
+    "gmail": GmailProvider(),
 }
 
 def get_provider(provider_name: str) -> BaseIntegrationProvider:

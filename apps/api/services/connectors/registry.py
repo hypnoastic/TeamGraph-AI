@@ -9,6 +9,8 @@ def is_connector_configured(key: str) -> bool:
         return bool(settings.slack_client_id and settings.slack_client_secret)
     elif key == "google":
         return bool(settings.google_client_id and settings.google_client_secret)
+    elif key == "gmail":
+        return bool(settings.google_client_id and settings.google_client_secret)
     elif key == "notion":
         return bool(
             settings.notion_integration_token
