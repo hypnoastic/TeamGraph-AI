@@ -249,19 +249,19 @@ class GraphitiService:
         if not user or not user.get("org_id"):
             return [self.health.group_id]
         org_id = user["org_id"]
-        group_ids = [f"org:{org_id}"]
+        group_ids = [f"org_{org_id}"]
         if project:
             project_ids = user.get("project_ids", [])
             project_names = user.get("project_names", [])
             if project in project_ids:
-                group_ids.append(f"org:{org_id}:project:{project}")
+                group_ids.append(f"org_{org_id}_project_{project}")
             elif project in project_names:
                 index = project_names.index(project)
                 if index < len(project_ids):
-                    group_ids.append(f"org:{org_id}:project:{project_ids[index]}")
+                    group_ids.append(f"org_{org_id}_project_{project_ids[index]}")
         else:
-            group_ids.extend(f"org:{org_id}:project:{project_id}" for project_id in user.get("project_ids", []))
-        group_ids.append(f"org:{org_id}:user:{user.get('id')}")
+            group_ids.extend(f"org_{org_id}_project_{project_id}" for project_id in user.get("project_ids", []))
+        group_ids.append(f"org_{org_id}_user_{user.get('id')}")
         return group_ids
 
 

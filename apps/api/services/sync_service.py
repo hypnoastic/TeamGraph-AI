@@ -48,19 +48,24 @@ async def run_sync_cycle():
                 # Ingest episodes into Graphiti
                 for ep in episodes:
                     try:
-                        import uuid
-                        from dateutil.parser import parse
+                        import uuid as _uuid
+                        from email.utils import parsedate_to_datetime as _rfc_parse
                         
                         created_at_str = ep.get("metadata", {}).get("created_at")
                         try:
                             if created_at_str:
-                                created_dt = parse(created_at_str)
+                                try:
+                                    # Try RFC 2822 first (Gmail header format e.g. "Fri, 26 Jun 2026 19:07:18 GMT")
+                                    created_dt = _rfc_parse(created_at_str).replace(tzinfo=None)
+                                except Exception:
+                                    # Fall back to ISO format
+                                    created_dt = datetime.datetime.fromisoformat(str(created_at_str)[:19])
                             else:
                                 created_dt = datetime.datetime.utcnow()
-                        except:
+                        except Exception:
                             created_dt = datetime.datetime.utcnow()
                             
-                        raw_id = ep.get("metadata", {}).get("message_id") or ep.get("metadata", {}).get("file_id") or uuid.uuid4().hex
+                        raw_id = ep.get("metadata", {}).get("message_id") or ep.get("metadata", {}).get("file_id") or _uuid.uuid4().hex
                         
                         metadata = EpisodeMetadata(
                             raw_context_id=f"sync_{raw_id}",
@@ -71,7 +76,7 @@ async def run_sync_cycle():
                             upload_channel="sync"
                         )
                         
-                        group_id = f"org:{conn.organization_id}"
+                        group_id = f"org_{conn.organization_id}"
                         
                         await graphiti_service.add_episode_for_context(
                             title=ep.get("title", "Integration Data"),

@@ -43,5 +43,4 @@ def build_episode_payload(
         "source_description": metadata.source_type,
         "reference_time": metadata.created_at if isinstance(metadata.created_at, datetime) else datetime.utcnow(),
         "group_id": group_id,
-        "episode_metadata": metadata.model_dump(),
     }
