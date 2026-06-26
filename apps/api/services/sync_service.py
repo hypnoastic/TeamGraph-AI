@@ -48,11 +48,27 @@ async def run_sync_cycle():
                 # Ingest episodes into Graphiti
                 for ep in episodes:
                     try:
+                        import uuid
+                        from dateutil.parser import parse
+                        
+                        created_at_str = ep.get("metadata", {}).get("created_at")
+                        try:
+                            if created_at_str:
+                                created_dt = parse(created_at_str)
+                            else:
+                                created_dt = datetime.datetime.utcnow()
+                        except:
+                            created_dt = datetime.datetime.utcnow()
+                            
+                        raw_id = ep.get("metadata", {}).get("message_id") or ep.get("metadata", {}).get("file_id") or uuid.uuid4().hex
+                        
                         metadata = EpisodeMetadata(
-                            author=ep.get("metadata", {}).get("author", "System"),
+                            raw_context_id=f"sync_{raw_id}",
+                            organization_id=conn.organization_id,
+                            uploader_email=ep.get("metadata", {}).get("author", "System"),
                             source_type=ep.get("metadata", {}).get("source", conn.provider),
-                            created_at=ep.get("metadata", {}).get("created_at", datetime.datetime.utcnow().isoformat()),
-                            reference_url=ep.get("metadata", {}).get("url")
+                            created_at=created_dt,
+                            upload_channel="sync"
                         )
                         
                         group_id = f"org:{conn.organization_id}"
