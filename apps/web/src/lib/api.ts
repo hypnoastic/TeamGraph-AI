@@ -2,6 +2,24 @@ import axios from 'axios';
 
 import { API_BASE_URL } from './config';
 
+const cache = new Map<string, any>();
+
+export function getCachedData<T>(key: string): T | null {
+  return cache.get(key) || null;
+}
+
+export function setCachedData(key: string, data: any): void {
+  cache.set(key, data);
+}
+
+export function clearCache(key?: string): void {
+  if (key) {
+    cache.delete(key);
+  } else {
+    cache.clear();
+  }
+}
+
 function getToken(): string | null {
   if (typeof window === 'undefined') {
     return null;

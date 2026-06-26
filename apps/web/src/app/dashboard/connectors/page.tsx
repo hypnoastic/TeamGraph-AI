@@ -3,12 +3,23 @@
 import { Plug, CheckCircle2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, getCachedData, setCachedData } from "@/lib/api";
 import type { ConnectorRecord } from "@/lib/types";
 
 export default function ConnectorsPage() {
-  const [connectors, setConnectors] = useState<ConnectorRecord[]>([]);
+  const [connectors, setConnectors] = useState<ConnectorRecord[]>(() => {
+    if (typeof window !== "undefined") {
+      return getCachedData<ConnectorRecord[]>("/integrations") || [];
+    }
+    return [];
+  });
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingPage, setLoadingPage] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !getCachedData("/integrations");
+    }
+    return true;
+  });
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   
   // Configuration Modal State
@@ -17,10 +28,22 @@ export default function ConnectorsPage() {
   const [repos, setRepos] = useState<{ id: number; full_name: string }[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<string[]>([]);
 
-  const refresh = () => {
+  const refresh = (force = false) => {
+    const cached = getCachedData<ConnectorRecord[]>("/integrations");
+    if (cached && !force) {
+      setConnectors(cached);
+      setLoadingPage(false);
+      return;
+    }
+
+    setLoadingPage(true);
     apiGet<{ connectors: ConnectorRecord[] }>("/integrations")
-      .then((data) => setConnectors(data.connectors))
-      .catch(() => setConnectors([]));
+      .then((data) => {
+        setCachedData("/integrations", data.connectors);
+        setConnectors(data.connectors);
+      })
+      .catch(() => setConnectors([]))
+      .finally(() => setLoadingPage(false));
   };
 
   useEffect(() => {
@@ -51,7 +74,7 @@ export default function ConnectorsPage() {
     setLoading(provider);
     try {
       await apiPost(`/integrations/${provider}/disconnect`);
-      refresh();
+      refresh(true);
     } catch (e) {
       alert("Failed to disconnect: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -103,84 +126,110 @@ export default function ConnectorsPage() {
   return (
     <PageShell title="Connectors" description="Enable sync adapters to import workplace data dynamically.">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {connectors.map((connector, index) => {
-          const isConnected = connector.state === "connected";
-          const isConfigured = connector.state === "configured";
-
-          let statusBadge = <span className="badge">Soon</span>;
-          if (isConnected) {
-            statusBadge = (
-              <span className="badge badge-safe flex items-center gap-1">
-                <CheckCircle2 size={12} /> Active
-              </span>
-            );
-          } else if (isConfigured) {
-            statusBadge = <span className="badge badge-review">Ready</span>;
-          }
-
-          return (
-            <article
-              key={connector.key}
-              className={`panel p-5 flex flex-col justify-between min-h-[250px] ${
-                ["bg-[var(--yellow)]", "bg-[var(--cyan)]", "bg-[var(--lime)]", "bg-[var(--coral)]"][index % 4]
-              }`}
+        {loadingPage && connectors.length === 0 ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div
+              key={`skeleton-${idx}`}
+              className="panel p-5 flex flex-col justify-between min-h-[250px] bg-white/5 animate-pulse border-2 border-black/10"
             >
               <div>
                 <div className="flex items-start justify-between">
-                  <Plug size={24} />
-                  {statusBadge}
+                  <div className="h-6 w-6 bg-black/10 rounded" />
+                  <div className="h-5 w-16 bg-black/10 rounded-full" />
                 </div>
-                <h2 className="mt-6 text-xl font-black">{connector.name}</h2>
-                <p className="mt-2 text-sm leading-relaxed">{connector.description}</p>
+                <div className="mt-6 h-6 w-32 bg-black/10 rounded" />
+                <div className="mt-3 space-y-2">
+                  <div className="h-4 bg-black/10 rounded w-full" />
+                  <div className="h-4 bg-black/10 rounded w-5/6" />
+                </div>
               </div>
 
               <div className="mt-5 space-y-3">
-                <div className="text-xs font-mono font-black uppercase tracking-wider opacity-70">
-                  {connector.todo}
+                <div className="h-4 bg-black/10 rounded w-2/3" />
+                <div className="h-8 bg-black/10 rounded w-full" />
+              </div>
+            </div>
+          ))
+        ) : (
+          connectors.map((connector, index) => {
+            const isConnected = connector.state === "connected";
+            const isConfigured = connector.state === "configured";
+
+            let statusBadge = <span className="badge">Soon</span>;
+            if (isConnected) {
+              statusBadge = (
+                <span className="badge badge-safe flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Active
+                </span>
+              );
+            } else if (isConfigured) {
+              statusBadge = <span className="badge badge-review">Ready</span>;
+            }
+
+            return (
+              <article
+                key={connector.key}
+                className={`panel p-5 flex flex-col justify-between min-h-[250px] ${
+                  ["bg-[var(--yellow)]", "bg-[var(--cyan)]", "bg-[var(--lime)]", "bg-[var(--coral)]"][index % 4]
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between">
+                    <Plug size={24} />
+                    {statusBadge}
+                  </div>
+                  <h2 className="mt-6 text-xl font-black">{connector.name}</h2>
+                  <p className="mt-2 text-sm leading-relaxed">{connector.description}</p>
                 </div>
 
-                {isConnected ? (
-                  <div className="flex flex-col gap-2">
-                    {connector.key === "github" && (
+                <div className="mt-5 space-y-3">
+                  <div className="text-xs font-mono font-black uppercase tracking-wider opacity-70">
+                    {connector.todo}
+                  </div>
+
+                  {isConnected ? (
+                    <div className="flex flex-col gap-2">
+                      {connector.key === "github" && (
+                        <button
+                          disabled={loading !== null || !isAdmin}
+                          onClick={() => handleConfigure(connector.key)}
+                          className="btn-primary w-full text-xs font-black py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Configure Sync
+                        </button>
+                      )}
                       <button
                         disabled={loading !== null || !isAdmin}
-                        onClick={() => handleConfigure(connector.key)}
-                        className="btn-primary w-full text-xs font-black py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={() => handleDisconnect(connector.key)}
+                        className="btn-secondary w-full text-xs font-black py-1.5 shadow-[2px_2px_0_black] disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!isAdmin ? "Only administrators can disconnect connectors." : ""}
                       >
-                        Configure Sync
+                        {!isAdmin ? "Admin Only" : loading === connector.key ? "Disconnecting..." : "Disconnect"}
                       </button>
-                    )}
+                    </div>
+                  ) : isConfigured ? (
                     <button
                       disabled={loading !== null || !isAdmin}
-                      onClick={() => handleDisconnect(connector.key)}
-                      className="btn-secondary w-full text-xs font-black py-1.5 shadow-[2px_2px_0_black] disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={!isAdmin ? "Only administrators can disconnect connectors." : ""}
+                      onClick={() => handleConnect(connector.key)}
+                      className="btn-primary w-full text-xs font-black py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={!isAdmin ? "Only administrators can connect connectors." : ""}
                     >
-                      {!isAdmin ? "Admin Only" : loading === connector.key ? "Disconnecting..." : "Disconnect"}
+                      {!isAdmin ? "Admin Only" : loading === connector.key ? "Connecting..." : "Connect"}
                     </button>
-                  </div>
-                ) : isConfigured ? (
-                  <button
-                    disabled={loading !== null || !isAdmin}
-                    onClick={() => handleConnect(connector.key)}
-                    className="btn-primary w-full text-xs font-black py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={!isAdmin ? "Only administrators can connect connectors." : ""}
-                  >
-                    {!isAdmin ? "Admin Only" : loading === connector.key ? "Connecting..." : "Connect"}
-                  </button>
-                ) : (
-                  <button
-                    disabled
-                    className="btn-secondary w-full text-xs font-black py-1.5 opacity-55 cursor-not-allowed transform-none shadow-none"
-                    title="Define credentials in .env to connect."
-                  >
-                    Keys Required
-                  </button>
-                )}
-              </div>
-            </article>
-          );
-        })}
+                  ) : (
+                    <button
+                      disabled
+                      className="btn-secondary w-full text-xs font-black py-1.5 opacity-55 cursor-not-allowed transform-none shadow-none"
+                      title="Define credentials in .env to connect."
+                    >
+                      Keys Required
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        )}
       </div>
 
       {/* Configuration Modal */}
