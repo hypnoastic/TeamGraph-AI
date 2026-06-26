@@ -60,7 +60,7 @@ def connect_integration(
         state_hash=state_hash,
         provider=provider,
         organization_id=user["org_id"],
-        user_id=user["sub"],
+        user_id=user["id"],
         expires_at=datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
     )
     db.add(oauth_state)

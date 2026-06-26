@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/:path*/",
+        destination: `${apiTarget.replace(/\/$/, "")}/:path*/`,
+      },
+      {
         source: "/api/:path*",
         destination: `${apiTarget.replace(/\/$/, "")}/:path*`,
       },
