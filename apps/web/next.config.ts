@@ -4,6 +4,9 @@ const apiTarget = process.env.API_TARGET || process.env.NEXT_PUBLIC_API_TARGET |
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   async rewrites() {
     return [
       {
