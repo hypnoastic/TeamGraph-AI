@@ -15,7 +15,7 @@ from services.optimizer import run_optimizer
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
-@router.get("/")
+@router.get("")
 async def get_settings(
     user: dict = Depends(require_admin),
     db: Session = Depends(get_db),

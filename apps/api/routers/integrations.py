@@ -22,7 +22,7 @@ import httpx
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
 
-@router.get("/")
+@router.get("")
 def get_integrations(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),

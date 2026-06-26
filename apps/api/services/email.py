@@ -5,10 +5,6 @@ from email.message import EmailMessage
 from config import settings
 
 class EmailService:
-    def __init__(self):
-        self.smtp_user = os.environ.get("GMAIL_SMTP_USER")
-        self.smtp_password = os.environ.get("GMAIL_SMTP_PASSWORD")
-
     def send_invitation_email(self, to_email: str, invite_url: str, role: str):
         message = EmailMessage()
         
@@ -25,16 +21,19 @@ class EmailService:
         </html>
         """
 
+        smtp_user = os.environ.get("GMAIL_SMTP_USER")
+        smtp_password = os.environ.get("GMAIL_SMTP_PASSWORD")
+
         message.set_content("Please enable HTML to view this email.")
         message.add_alternative(html_content, subtype='html')
         message["To"] = to_email
-        message["From"] = self.smtp_user or "no-reply@teamgraph.local"
+        message["From"] = smtp_user or "no-reply@teamgraph.local"
         message["Subject"] = "You're invited to TeamGraph"
 
-        if self.smtp_user and self.smtp_password:
+        if smtp_user and smtp_password:
             try:
                 with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                    server.login(self.smtp_user, self.smtp_password)
+                    server.login(smtp_user, smtp_password)
                     server.send_message(message)
                 print(f"SMTP Email sent to {to_email}")
                 return True

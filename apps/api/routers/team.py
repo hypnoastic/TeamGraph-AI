@@ -40,7 +40,7 @@ def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-@router.get("/")
+@router.get("")
 def get_team(user: dict = Depends(require_admin)):
     return list_team_members(user["org_id"])
 

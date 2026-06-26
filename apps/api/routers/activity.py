@@ -7,6 +7,6 @@ from services.activity_service import list_activity
 router = APIRouter(prefix="/activity", tags=["activity"])
 
 
-@router.get("/")
+@router.get("")
 def get_activity(user: dict = Depends(get_current_user)):
     return list_activity(user["org_id"]) if user.get("org_id") else []

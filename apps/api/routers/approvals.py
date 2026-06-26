@@ -9,7 +9,7 @@ from services.context_service import approve_review_item, list_approvals, reject
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
-@router.get("/")
+@router.get("")
 def get_approvals(user: dict = Depends(require_admin), db: Session = Depends(get_db)):
     return list_approvals(user, db)
 

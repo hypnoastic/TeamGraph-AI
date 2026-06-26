@@ -21,7 +21,7 @@ class ProjectRequest(BaseModel):
     visibility: str = Field(default="org", pattern="^(org|private)$")
 
 
-@router.get("/")
+@router.get("")
 def list_projects(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if not user.get("org_id"):
         return []
@@ -35,7 +35,7 @@ def list_projects(user: dict = Depends(get_current_user), db: Session = Depends(
     ]
 
 
-@router.post("/")
+@router.post("")
 def create_project(
     request: ProjectRequest,
     user: dict = Depends(get_current_user),
