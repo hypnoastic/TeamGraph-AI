@@ -105,7 +105,7 @@ export default function LandingPage() {
               <div className="w-5 h-5 rounded-full bg-[var(--yellow)] flex items-center justify-center text-black text-[8px] font-bold">F</div>
             </div>
           </div>
-          <div className="font-mono text-[9px] text-center opacity-75 text-black">Created link: USER -> WORKSPACE -> FACT</div>
+          <div className="font-mono text-[9px] text-center opacity-75 text-black">{"Created link: USER -> WORKSPACE -> FACT"}</div>
         </div>
       )
     }
