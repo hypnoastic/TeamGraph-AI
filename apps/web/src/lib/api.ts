@@ -43,9 +43,15 @@ export function createApiClient(authenticated = true) {
   });
 }
 
-export async function apiGet<T>(path: string, authenticated = true): Promise<T> {
+export async function apiGet<T>(path: string, authenticated = true, useCache = false): Promise<T> {
+  if (useCache && cache.has(path)) {
+    return cache.get(path) as T;
+  }
   const client = createApiClient(authenticated);
   const response = await client.get<T>(path);
+  if (useCache) {
+    cache.set(path, response.data);
+  }
   return response.data;
 }
 

@@ -42,10 +42,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     apiGet<SessionUser>("/auth/me").then((fresh) => {
       localStorage.setItem("teamgraph_user", JSON.stringify(fresh));
       setUser(fresh);
-    }).catch(() => {
-      localStorage.removeItem("teamgraph_token");
-      localStorage.removeItem("teamgraph_user");
-      router.replace("/login");
+    }).catch((err: any) => {
+      if (err?.response?.status === 401) {
+        localStorage.removeItem("teamgraph_token");
+        localStorage.removeItem("teamgraph_user");
+        router.replace("/login");
+      }
     });
     apiGet<HealthResponse>("/health", false).then(setHealth).catch(() => setHealth(null));
   }, [router]);

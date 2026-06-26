@@ -31,3 +31,7 @@ class NotionProvider(BaseIntegrationProvider):
             "display_name": "Notion Workspace",
             "metadata": {"workspace_name": "Demo Notion"}
         }
+
+    async def sync_data(self, access_token: str, last_synced_at: Any = None, config: Dict[str, Any] = None) -> list[Dict[str, Any]]:
+        # Mock notion sync
+        return []

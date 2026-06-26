@@ -27,13 +27,16 @@ export default function GraphPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selected, setSelected] = useState<Node | null>(null);
   const [timeline, setTimeline] = useState<GraphVisualization["timeline"]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGet<GraphVisualization>("/graph/visualization").then((data) => {
+    setLoading(true);
+    apiGet<GraphVisualization>("/graph/visualization", true, true).then((data) => {
       setNodes(graphNodes(data.nodes));
       setEdges(graphEdges(data.edges));
       setTimeline(data.timeline);
-    }).catch(() => undefined);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [setEdges, setNodes]);
 
   const meta = (selected?.data.meta || {}) as JsonObject;
@@ -41,7 +44,13 @@ export default function GraphPage() {
   return (
     <PageShell title="Graph explorer" actions={<span className="badge badge-live">{nodes.length} nodes</span>}>
       <div className="grid gap-6 xl:grid-cols-[1fr_310px]">
-        <div className="panel h-[680px] overflow-hidden bg-[var(--surface)]">
+        <div className="panel h-[680px] overflow-hidden bg-[var(--surface)] relative">
+          {loading ? (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[var(--surface)]">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-black border-t-[var(--cyan)]" />
+              <p className="mt-4 font-bold text-black">Loading Graph Data...</p>
+            </div>
+          ) : null}
           <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={(_, node) => setSelected(node)} fitView>
             <Background color="#111" gap={28} size={1.3} /><Controls showInteractive={false} />
           </ReactFlow>
