@@ -123,7 +123,6 @@ async def integration_callback(
         existing.display_name = identity.get("display_name")
         existing.metadata_json = json.dumps(identity.get("metadata", {}))
         existing.updated_at = datetime.datetime.utcnow()
-        existing.last_synced_at = datetime.datetime.utcnow()
         existing.connected_by_user_id = oauth_state.user_id
     else:
         new_conn = IntegrationConnection(
@@ -137,7 +136,7 @@ async def integration_callback(
             display_name=identity.get("display_name"),
             metadata_json=json.dumps(identity.get("metadata", {})),
             connected_by_user_id=oauth_state.user_id,
-            last_synced_at=datetime.datetime.utcnow()
+            last_synced_at=None
         )
         db.add(new_conn)
     
