@@ -5,8 +5,10 @@ from .base import BaseIntegrationProvider
 
 class NotionProvider(BaseIntegrationProvider):
     def get_authorization_url(self, state: str) -> str:
-        client_id = settings.notion_client_id or "demo-notion-client-id"
-        redirect_uri = f"{settings.api_base_url}/api/integrations/notion/callback"
+        client_id = settings.notion_client_id
+        if not client_id:
+            raise ValueError("Notion Client ID is not configured.")
+        redirect_uri = f"{settings.frontend_origin}/api/integrations/notion/callback"
         
         params = {
             "client_id": client_id,

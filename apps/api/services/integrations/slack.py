@@ -6,20 +6,24 @@ from .base import BaseIntegrationProvider
 
 class SlackProvider(BaseIntegrationProvider):
     def get_authorization_url(self, state: str) -> str:
-        client_id = settings.slack_client_id or "demo-client-id"
+        client_id = settings.slack_client_id
+        if not client_id:
+            raise ValueError("Slack Client ID is not configured.")
+        redirect_uri = f"{settings.frontend_origin}/api/integrations/slack/callback"
         scopes = settings.slack_bot_scopes
-        redirect_uri = f"{settings.api_base_url}/api/integrations/slack/callback"
         
         params = {
             "client_id": client_id,
-            "scope": scopes,
             "redirect_uri": redirect_uri,
-            "state": state
+            "scope": scopes,
+            "state": state,
         }
         return "https://slack.com/oauth/v2/authorize?" + urllib.parse.urlencode(params)
 
     async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
-        redirect_uri = f"{settings.api_base_url}/api/integrations/slack/callback"
+        client_id = settings.slack_client_id
+        client_secret = settings.slack_client_secret
+        redirect_uri = f"{settings.frontend_origin}/api/integrations/slack/callback"
         # In a real scenario we'd do a POST to slack.com/api/oauth.v2.access
         # async with httpx.AsyncClient() as client:
         #     resp = await client.post(...)

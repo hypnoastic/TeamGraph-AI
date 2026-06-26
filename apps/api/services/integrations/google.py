@@ -9,7 +9,7 @@ class GoogleDriveProvider(BaseIntegrationProvider):
         client_id = settings.google_client_id
         if not client_id:
             raise ValueError("Google Client ID is not configured.")
-        redirect_uri = f"{settings.api_base_url}/api/integrations/google/callback"
+        redirect_uri = f"{settings.frontend_origin}/api/integrations/google/callback"
         scopes = settings.google_drive_scopes
         
         params = {
@@ -26,7 +26,7 @@ class GoogleDriveProvider(BaseIntegrationProvider):
     async def exchange_code_for_tokens(self, code: str) -> Dict[str, Any]:
         client_id = settings.google_client_id
         client_secret = settings.google_client_secret
-        redirect_uri = f"{settings.api_base_url}/api/integrations/google/callback"
+        redirect_uri = f"{settings.frontend_origin}/api/integrations/google/callback"
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
