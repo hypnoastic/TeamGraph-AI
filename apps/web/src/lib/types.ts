@@ -57,6 +57,7 @@ export type GraphVisualization = {
 };
 export type ConnectorRecord = { key: string; name: string; description: string; state: string; mode: string; todo: string; auth_url?: string | null; ready?: boolean; connected_account?: string | null; last_synced_at?: string | null };
 export type TeamMember = { id: string; email: string; name: string; role: string; projects: string[]; project_ids?: string[] };
+export type TeamInvitation = { id: string; email: string; role: string; status: string; project_ids: string[]; expires_at: string };
 export type ActivityRecord = { id: string; type: string; title: string; description: string; actorId?: string | null; actorEmail?: string | null; metadataJson?: string | null; createdAt: string };
 export type DashboardSummary = {
   trusted_memories: number;

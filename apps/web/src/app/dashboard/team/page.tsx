@@ -1,26 +1,32 @@
 "use client";
 
-import { Copy, Trash2, UserPlus } from "lucide-react";
+import { Copy, Trash2, UserPlus, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
-import type { Project, TeamMember } from "@/lib/types";
+import type { Project, TeamMember, TeamInvitation } from "@/lib/types";
 
 export default function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
+  const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [inviteUrl, setInviteUrl] = useState("");
 
-  const refresh = () => apiGet<TeamMember[]>("/team/").then(setTeam).catch(() => setTeam([]));
+  const refresh = () => {
+    apiGet<TeamMember[]>("/team/").then(setTeam).catch(() => setTeam([]));
+    apiGet<TeamInvitation[]>("/team/invitations/").then(setInvitations).catch(() => setInvitations([]));
+  };
+  
   useEffect(() => { refresh(); apiGet<Project[]>("/projects/").then(setProjects).catch(() => setProjects([])); }, []);
 
   const invite = async (event: React.FormEvent) => {
     event.preventDefault();
-    const response = await apiPost<{ invite_url: string }>("/team/invitations", { email, role, project_ids: projects.map((project) => project.id) });
+    const response = await apiPost<{ invite_url: string }>("/team/invitations/", { email, role, project_ids: projects.map((project) => project.id) });
     setInviteUrl(response.invite_url);
     setEmail("");
+    refresh();
   };
 
   const remove = async (id: string) => { await apiDelete(`/team/${id}`); await refresh(); };
@@ -37,7 +43,8 @@ export default function TeamPage() {
         <button className="btn-primary"><UserPlus size={16} /> Invite</button>
       </form>
       {inviteUrl && <div className="mb-5 flex w-full items-center gap-2 border-2 border-black bg-[var(--lime)] p-3 text-left text-sm font-bold">Invitation email sent successfully!</div>}
-      <div className="panel overflow-x-auto">
+      
+      <div className="panel overflow-x-auto mb-8">
         <table className="data-table">
           <thead><tr><th>Member</th><th>Role</th><th>Projects</th><th /></tr></thead>
           <tbody>{team.map((member) => (
@@ -55,6 +62,30 @@ export default function TeamPage() {
           ))}</tbody>
         </table>
       </div>
+
+      {invitations.length > 0 && (
+        <>
+          <h2 className="mb-4 text-xl font-bold">Invitations</h2>
+          <div className="panel overflow-x-auto">
+            <table className="data-table">
+              <thead><tr><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+              <tbody>{invitations.map((inv) => (
+                <tr key={inv.id}>
+                  <td><div className="mono text-[12px]">{inv.email}</div></td>
+                  <td className="capitalize">{inv.role}</td>
+                  <td>
+                    {inv.status === "pending" ? (
+                      <span className="flex items-center gap-1 text-[var(--muted)] text-xs font-bold uppercase tracking-wider"><Clock size={12} /> Pending</span>
+                    ) : (
+                      <span className="text-green-600 text-xs font-bold uppercase tracking-wider">Accepted</span>
+                    )}
+                  </td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </>
+      )}
     </PageShell>
   );
 }
