@@ -34,3 +34,12 @@ class BaseIntegrationProvider(ABC):
         - metadata (optional)
         """
         pass
+
+    @abstractmethod
+    async def sync_data(self, access_token: str, last_synced_at: Optional[Any], config: Optional[Dict[str, Any]] = None) -> list[Dict[str, Any]]:
+        """
+        Fetches recent data modified since `last_synced_at`.
+        Returns a list of episodes (dicts) matching the Graphiti add_episode_for_context payload.
+        Episodes should have: title, content, summary, metadata (dict).
+        """
+        pass

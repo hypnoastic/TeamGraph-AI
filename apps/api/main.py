@@ -28,6 +28,7 @@ from routers import (
 from services.bootstrap_service import ensure_neo4j_bootstrap
 from services.graphiti.service import graphiti_service
 from services.postgres_seed import seed_postgres
+from services.sync_service import start_sync_worker, stop_sync_worker
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,16 @@ async def lifespan(app: FastAPI):
         logger.exception("Neo4j startup failed; continuing in degraded mode")
     logger.info("Startup: initializing Graphiti")
     await graphiti_service.initialize_graphiti()
+    
+    # Start the data synchronization engine
+    start_sync_worker()
+    
     logger.info("Startup: complete")
     yield
+    
+    # Stop the sync worker on shutdown
+    stop_sync_worker()
+    
     await graphiti_service.close()
     neo4j_db.close()
 
