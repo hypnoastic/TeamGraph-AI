@@ -34,3 +34,23 @@ postgres_data/
 # Generated reports
 reports/
 teamgraph-sa.json
+
+# Local debug/test scripts
+check_db.py
+fix_db.py
+debug_graph.py
+run_sync_manual.py
+check_neo4j.py
+make_circle.py
+*.json.bak
+
+# Service account / secret files
+*-sa.json
+*service_account*.json
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Random local files
+*.jpeg
+*.jpg.local
