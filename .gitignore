@@ -33,3 +33,4 @@ postgres_data/
 
 # Generated reports
 reports/
+teamgraph-sa.json
