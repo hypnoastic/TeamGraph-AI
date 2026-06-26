@@ -74,7 +74,7 @@ def create_invitation(
     db.add(invitation)
     db.commit()
     
-    invite_url = f"{settings.public_base_url}/login?invite={raw_token}"
+    invite_url = f"{settings.frontend_origin}/login?invite={raw_token}"
     
     from services.email import email_service
     email_service.send_invitation_email(

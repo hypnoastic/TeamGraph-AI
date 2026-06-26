@@ -235,7 +235,7 @@ export default function ConnectorsPage() {
       {/* Configuration Modal */}
       {configModalProvider && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-[var(--bg-primary)] border border-white/10 p-6 shadow-[8px_8px_0_black] max-w-lg w-full max-h-[80vh] flex flex-col">
+          <div className="bg-[var(--paper)] border-2 border-black p-6 shadow-[8px_8px_0_black] max-w-lg w-full max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-black capitalize">{configModalProvider} Configuration</h3>
               <button
