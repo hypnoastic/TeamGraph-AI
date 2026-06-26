@@ -248,28 +248,28 @@ export default function ConnectorsPage() {
 
             {configLoading ? (
               <div className="flex-1 flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
               </div>
             ) : configModalProvider === "github" ? (
               <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-black/70">
                   Select the repositories you want TeamGraph AI to index and synchronize. 
                   Only repositories you have granted the GitHub App access to are listed below.
                 </p>
                 <div className="space-y-2">
                   {repos.length === 0 ? (
-                    <div className="p-4 border border-white/10 bg-white/5 text-center text-sm">
+                    <div className="p-4 border border-black/10 bg-black/5 text-center text-sm">
                       No repositories found. Ensure your GitHub App installation includes access to repositories.
                     </div>
                   ) : (
                     repos.map((repo) => (
                       <label
                         key={repo.id}
-                        className="flex items-center gap-3 p-3 border border-white/10 hover:bg-white/5 cursor-pointer transition-colors"
+                        className="flex items-center gap-3 p-3 border border-black/10 hover:bg-black/5 cursor-pointer transition-colors"
                       >
                         <input
                           type="checkbox"
-                          className="w-4 h-4 rounded border-white/20 bg-transparent text-[var(--accent)] focus:ring-[var(--accent)]"
+                          className="w-4 h-4 rounded border-black/20 bg-transparent text-[var(--accent)] focus:ring-[var(--accent)]"
                           checked={selectedRepos.includes(repo.full_name)}
                           onChange={() => toggleRepo(repo.full_name)}
                         />
@@ -281,7 +281,7 @@ export default function ConnectorsPage() {
               </div>
             ) : null}
 
-            <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-black/10 flex justify-end gap-3">
               <button
                 onClick={() => setConfigModalProvider(null)}
                 className="btn-secondary px-4 py-2 text-sm shadow-none transform-none"
