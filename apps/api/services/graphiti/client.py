@@ -47,7 +47,7 @@ def create_graphiti_client(runtime_config: GraphitiRuntimeConfig) -> GraphitiCli
             embedder=GeminiEmbedder(
                 config=GeminiEmbedderConfig(
                     api_key=settings.gemini_api_key,
-                    embedding_model="embedding-001",
+                    embedding_model="gemini-embedding-001",
                 )
             ),
             cross_encoder=GeminiRerankerClient(config=llm_config),
