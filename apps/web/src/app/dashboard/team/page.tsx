@@ -36,7 +36,7 @@ export default function TeamPage() {
         </select>
         <button className="btn-primary"><UserPlus size={16} /> Invite</button>
       </form>
-      {inviteUrl && <button onClick={() => navigator.clipboard.writeText(inviteUrl)} className="mb-5 flex w-full items-center gap-2 border-2 border-black bg-[var(--lime)] p-3 text-left text-sm font-bold"><Copy size={16} /> Copy invite link</button>}
+      {inviteUrl && <div className="mb-5 flex w-full items-center gap-2 border-2 border-black bg-[var(--lime)] p-3 text-left text-sm font-bold">Invitation email sent successfully!</div>}
       <div className="panel overflow-x-auto">
         <table className="data-table">
           <thead><tr><th>Member</th><th>Role</th><th>Projects</th><th /></tr></thead>
