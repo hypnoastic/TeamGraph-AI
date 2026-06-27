@@ -12,6 +12,10 @@ from sqlalchemy.orm import Session
 from models import BrainConversation, BrainMessage
 
 
+class CreateConversationRequest(BaseModel):
+    title: str = Field(default="New chat", min_length=1, max_length=255)
+
+
 class ConversationSummary(BaseModel):
     id: str
     title: str

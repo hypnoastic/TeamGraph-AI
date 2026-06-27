@@ -6,6 +6,7 @@ from postgres import get_db
 from services.brain_chat_service import (
     ConversationDetail,
     ConversationSummary,
+    CreateConversationRequest,
     create_conversation,
     delete_conversation,
     get_conversation_detail,
@@ -42,8 +43,13 @@ def get_conversations(user: dict = Depends(get_current_user), db: Session = Depe
 
 
 @router.post("/conversations", response_model=ConversationSummary)
-def start_conversation(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    return create_conversation(user, db)
+def start_conversation(
+    request: CreateConversationRequest = CreateConversationRequest(),
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    title = request.title.strip() or "New chat"
+    return create_conversation(user, db, title=title)
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)

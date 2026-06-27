@@ -5,22 +5,38 @@ import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { LoadingButton } from "@/components/loading-button";
 import { apiGet, apiPost } from "@/lib/api";
+import { getPageCache, setPageCache } from "@/lib/page-cache";
 import type { InboxItem, Project } from "@/lib/types";
 
+const INBOX_CACHE_KEY = "context-inbox";
+const PROJECTS_CACHE_KEY = "context-projects";
+
 export default function ContextInboxPage() {
-  const [items, setItems] = useState<InboxItem[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [items, setItems] = useState<InboxItem[]>(() => getPageCache<InboxItem[]>(INBOX_CACHE_KEY) || []);
+  const [projects, setProjects] = useState<Project[]>(() => getPageCache<Project[]>(PROJECTS_CACHE_KEY) || []);
+  const [refreshing, setRefreshing] = useState(!getPageCache<InboxItem[]>(INBOX_CACHE_KEY));
   const [form, setForm] = useState({ title: "", content: "", project: "", visibility: "project", type: "note" });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
 
-  const refresh = () => apiGet<InboxItem[]>("/context/inbox").then(setItems).catch(() => setItems([]));
+  const refresh = () =>
+    apiGet<InboxItem[]>("/context/inbox")
+      .then((next) => {
+        setPageCache(INBOX_CACHE_KEY, next);
+        setItems(next);
+      })
+      .catch(() => setItems((current) => current));
+
   useEffect(() => {
-    refresh();
-    apiGet<Project[]>("/projects").then((data) => {
-      setProjects(data);
-      if (data[0]) setForm((current) => ({ ...current, project: data[0].id }));
-    }).catch(() => setProjects([]));
+    setRefreshing(!getPageCache<InboxItem[]>(INBOX_CACHE_KEY));
+    refresh().finally(() => setRefreshing(false));
+    apiGet<Project[]>("/projects")
+      .then((data) => {
+        setPageCache(PROJECTS_CACHE_KEY, data);
+        setProjects(data);
+        if (data[0]) setForm((current) => ({ ...current, project: data[0].id }));
+      })
+      .catch(() => setProjects((current) => current));
   }, []);
 
   const submit = async (event: React.FormEvent) => {
@@ -45,7 +61,7 @@ export default function ContextInboxPage() {
   };
 
   return (
-    <PageShell title="Context inbox" description="Add trusted memory or review recent ingestion.">
+    <PageShell title="Context inbox" description="Add trusted memory or review recent ingestion." actions={refreshing ? <span className="badge">Updating...</span> : undefined}>
       <div className="grid gap-6 xl:grid-cols-[.75fr_1.25fr]">
         <form onSubmit={submit} className="panel h-fit p-5">
           <h2 className="mb-4 text-lg font-black">Add context</h2>

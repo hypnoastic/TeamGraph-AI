@@ -9,10 +9,18 @@ type CitationInspectorProps = {
   loading: boolean;
   citation: BrainCitation | null;
   detail: BrainSourceDetail | null;
+  fetchFailed?: boolean;
   onClose: () => void;
 };
 
-export function CitationInspector({ open, loading, citation, detail, onClose }: CitationInspectorProps) {
+export function CitationInspector({
+  open,
+  loading,
+  citation,
+  detail,
+  fetchFailed = false,
+  onClose,
+}: CitationInspectorProps) {
   if (!open) {
     return (
       <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-[var(--muted)]">
@@ -22,6 +30,8 @@ export function CitationInspector({ open, loading, citation, detail, onClose }: 
   }
 
   if (!citation) return null;
+
+  const showFallback = !loading && (!detail || fetchFailed);
 
   return (
     <>
@@ -35,7 +45,14 @@ export function CitationInspector({ open, loading, citation, detail, onClose }: 
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
-        {loading ? <div className="empty-state text-sm">Loading source...</div> : null}
+        {loading ? (
+          <div className="space-y-3">
+            <div className="h-4 w-2/3 animate-pulse bg-black/10" />
+            <div className="h-20 animate-pulse bg-black/5" />
+            <div className="h-4 w-1/2 animate-pulse bg-black/10" />
+          </div>
+        ) : null}
+
         {!loading && detail ? (
           <div className="space-y-4 text-sm">
             {detail.summary ? (
@@ -73,6 +90,25 @@ export function CitationInspector({ open, loading, citation, detail, onClose }: 
                 Open context inbox
               </Link>
             ) : null}
+          </div>
+        ) : null}
+
+        {showFallback ? (
+          <div className="space-y-4 text-sm">
+            <p className="border-2 border-black bg-[var(--yellow)] p-3 text-xs font-bold">
+              Full content is not indexed in Postgres yet. Showing citation metadata from the brain response.
+            </p>
+            {citation.summary ? (
+              <section>
+                <div className="mono mb-1 text-[10px] font-bold uppercase">Summary</div>
+                <p>{citation.summary}</p>
+              </section>
+            ) : null}
+            <section className="grid grid-cols-2 gap-3">
+              <Meta label="Project" value={citation.project_name || "Organization"} />
+              <Meta label="Source" value={citation.source_type || "graphiti"} />
+              <Meta label="Uploaded" value={citation.created_at ? new Date(citation.created_at).toLocaleString() : "Unknown"} />
+            </section>
           </div>
         ) : null}
       </div>

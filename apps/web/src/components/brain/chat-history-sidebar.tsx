@@ -8,7 +8,7 @@ type ChatHistorySidebarProps = {
   activeConversationId: string | null;
   loading: boolean;
   onSelect: (conversationId: string) => void;
-  onNewChat: () => void;
+  onOpenNewChat: () => void;
   onDelete: (conversationId: string) => void;
 };
 
@@ -17,23 +17,25 @@ export function ChatHistorySidebar({
   activeConversationId,
   loading,
   onSelect,
-  onNewChat,
+  onOpenNewChat,
   onDelete,
 }: ChatHistorySidebarProps) {
   return (
     <>
       <div className="border-b-2 border-black p-4">
         <div className="mono text-[10px] font-bold uppercase tracking-[.12em] text-[var(--muted)]">Chats</div>
-        <button
-          type="button"
-          onClick={onNewChat}
-          className="btn-primary mt-3 w-full text-xs"
-        >
+        <button type="button" onClick={onOpenNewChat} className="btn-primary mt-3 w-full text-xs">
           <MessageSquarePlus size={14} /> New chat
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        {loading ? <div className="empty-state m-2 text-xs">Loading chats...</div> : null}
+        {loading && !conversations.length ? (
+          <div className="space-y-2 p-2">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-12 animate-pulse border-2 border-black/10 bg-black/5" />
+            ))}
+          </div>
+        ) : null}
         {!loading && !conversations.length ? (
           <div className="empty-state m-2 text-xs">No saved chats yet.</div>
         ) : null}

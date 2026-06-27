@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from database import neo4j_db
 from models import ContextRecord, Project, RawContextRecord, User
 from services.team_service import user_can_access_project
 
@@ -38,6 +40,70 @@ def _can_access_raw(raw: RawContextRecord, project: Project | None, user: dict) 
     if project and not user_can_access_project(user, project.name):
         return False
     return True
+
+
+def _episode_props(node: Any) -> dict[str, Any]:
+    if node is None:
+        return {}
+    if isinstance(node, dict):
+        return node
+    items = getattr(node, "items", None)
+    if callable(items):
+        return dict(items())
+    properties = getattr(node, "_properties", None)
+    if isinstance(properties, dict):
+        return properties
+    return {}
+
+
+def _lookup_graphiti_episode(source_ref: str, user: dict) -> BrainSourceDetail | None:
+    if neo4j_db.driver is None:
+        neo4j_db.connect()
+    if neo4j_db.health_check().get("status") != "ok":
+        return None
+
+    org_id = user.get("org_id")
+    group_id = f"org_{org_id}" if org_id else None
+    rows = neo4j_db.execute_query(
+        """
+        MATCH (e:Episodic)
+        WHERE e.uuid = $source_ref OR e.id = $source_ref
+        RETURN e
+        LIMIT 1
+        """,
+        {"source_ref": source_ref},
+    )
+    if not rows and group_id:
+        rows = neo4j_db.execute_query(
+            """
+            MATCH (e:Episodic {group_id: $group_id})
+            WHERE e.uuid = $source_ref OR e.name = $source_ref
+            RETURN e
+            LIMIT 1
+            """,
+            {"source_ref": source_ref, "group_id": group_id},
+        )
+
+    if not rows:
+        return None
+
+    episode = rows[0].get("e")
+    props = _episode_props(episode)
+    created = props.get("created_at")
+    created_str = created.isoformat() if hasattr(created, "isoformat") else (str(created) if created else None)
+
+    return BrainSourceDetail(
+        id=source_ref,
+        graphiti_episode_uuid=props.get("uuid") or source_ref,
+        title=str(props.get("name") or props.get("title") or "Graphiti episode"),
+        summary=str(props.get("summary") or props.get("source_description") or "") or None,
+        content=str(props.get("content") or props.get("source_description") or props.get("summary") or "") or None,
+        source_type="graphiti",
+        context_type="episode",
+        project_name=props.get("project_name"),
+        created_at=created_str,
+        tags=[],
+    )
 
 
 def _serialize_detail(
@@ -129,5 +195,9 @@ def get_brain_source_detail(source_ref: str, user: dict, db: Session) -> BrainSo
             uploader=uploader,
             source_ref=source_ref,
         )
+
+    graphiti_detail = _lookup_graphiti_episode(source_ref, user)
+    if graphiti_detail:
+        return graphiti_detail
 
     raise HTTPException(status_code=404, detail="Source not found.")

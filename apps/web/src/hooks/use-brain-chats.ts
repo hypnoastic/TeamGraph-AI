@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import type { BrainConversationDetail, BrainConversationSummary, BrainResponse } from "@/lib/types";
 
@@ -14,6 +14,16 @@ export type ChatMessage = {
   animate?: boolean;
 };
 
+function toChatMessages(detail: BrainConversationDetail): ChatMessage[] {
+  return detail.messages.map((message) => ({
+    id: message.id,
+    role: message.role as "user" | "assistant",
+    text: message.text,
+    answer: message.answer || undefined,
+    status: "ready",
+  }));
+}
+
 export function useBrainChats() {
   const [conversations, setConversations] = useState<BrainConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
@@ -21,16 +31,18 @@ export function useBrainChats() {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
+  const threadCache = useRef<Map<string, ChatMessage[]>>(new Map());
 
-  const refreshConversations = useCallback(async () => {
-    setLoadingConversations(true);
+  const refreshConversations = useCallback(async (silent = false) => {
+    if (!silent) setLoadingConversations(true);
     try {
       const data = await apiGet<BrainConversationSummary[]>("/brain/conversations");
       setConversations(data);
     } catch {
-      setConversations([]);
+      if (!silent) setConversations([]);
     } finally {
-      setLoadingConversations(false);
+      if (!silent) setLoadingConversations(false);
     }
   }, []);
 
@@ -39,37 +51,45 @@ export function useBrainChats() {
   }, [refreshConversations]);
 
   const loadConversation = useCallback(async (conversationId: string) => {
-    setLoadingMessages(true);
     setActiveConversationId(conversationId);
+    const cached = threadCache.current.get(conversationId);
+    if (cached) {
+      setMessages(cached);
+      setLoadingMessages(false);
+    } else {
+      setLoadingMessages(true);
+    }
+
     try {
       const detail = await apiGet<BrainConversationDetail>(`/brain/conversations/${conversationId}`);
-      setMessages(
-        detail.messages.map((message) => ({
-          id: message.id,
-          role: message.role as "user" | "assistant",
-          text: message.text,
-          answer: message.answer || undefined,
-          status: "ready",
-        })),
-      );
+      const nextMessages = toChatMessages(detail);
+      threadCache.current.set(conversationId, nextMessages);
+      setMessages(nextMessages);
     } catch {
-      setMessages([]);
+      if (!cached) setMessages([]);
     } finally {
       setLoadingMessages(false);
     }
   }, []);
 
-  const startConversation = useCallback(async () => {
-    const created = await apiPost<BrainConversationSummary>("/brain/conversations");
-    setConversations((current) => [created, ...current]);
-    setActiveConversationId(created.id);
-    setMessages([]);
-    return created.id;
+  const startConversation = useCallback(async (title: string) => {
+    setCreatingChat(true);
+    try {
+      const created = await apiPost<BrainConversationSummary>("/brain/conversations", { title: title.trim() });
+      setConversations((current) => [created, ...current]);
+      setActiveConversationId(created.id);
+      setMessages([]);
+      threadCache.current.set(created.id, []);
+      return created.id;
+    } finally {
+      setCreatingChat(false);
+    }
   }, []);
 
   const removeConversation = useCallback(
     async (conversationId: string) => {
       await apiDelete(`/brain/conversations/${conversationId}`);
+      threadCache.current.delete(conversationId);
       setConversations((current) => current.filter((item) => item.id !== conversationId));
       if (activeConversationId === conversationId) {
         setActiveConversationId(null);
@@ -86,7 +106,7 @@ export function useBrainChats() {
 
       let conversationId = activeConversationId;
       if (!conversationId) {
-        conversationId = await startConversation();
+        conversationId = await startConversation(text.slice(0, 80));
       }
 
       const userMessage: ChatMessage = {
@@ -96,11 +116,15 @@ export function useBrainChats() {
         status: "ready",
       };
       const thinkingId = `local-thinking-${Date.now()}`;
-      setMessages((current) => [
-        ...current,
-        userMessage,
-        { id: thinkingId, role: "assistant", text: "", status: "thinking" },
-      ]);
+      setMessages((current) => {
+        const next = [
+          ...current,
+          userMessage,
+          { id: thinkingId, role: "assistant" as const, text: "", status: "thinking" as const },
+        ];
+        if (conversationId) threadCache.current.set(conversationId, next.filter((m) => m.id !== thinkingId));
+        return next;
+      });
       setBusy(true);
 
       try {
@@ -108,8 +132,8 @@ export function useBrainChats() {
           query: text,
           conversation_id: conversationId,
         });
-        setMessages((current) =>
-          current
+        setMessages((current) => {
+          const next = current
             .filter((message) => message.id !== thinkingId)
             .concat({
               id: `local-assistant-${Date.now()}`,
@@ -118,12 +142,14 @@ export function useBrainChats() {
               answer,
               status: "ready",
               animate: true,
-            }),
-        );
-        await refreshConversations();
+            });
+          if (conversationId) threadCache.current.set(conversationId, next);
+          return next;
+        });
+        await refreshConversations(true);
       } catch {
-        setMessages((current) =>
-          current
+        setMessages((current) => {
+          const next = current
             .filter((message) => message.id !== thinkingId)
             .concat({
               id: `local-assistant-${Date.now()}`,
@@ -131,14 +157,22 @@ export function useBrainChats() {
               text: "The brain is unavailable right now. Try again in a moment.",
               error: true,
               status: "ready",
-            }),
-        );
+            });
+          if (conversationId) threadCache.current.set(conversationId, next);
+          return next;
+        });
       } finally {
         setBusy(false);
       }
     },
     [activeConversationId, busy, refreshConversations, startConversation],
   );
+
+  const prepareNewChat = useCallback(() => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setLoadingMessages(false);
+  }, []);
 
   return {
     conversations,
@@ -147,10 +181,12 @@ export function useBrainChats() {
     loadingConversations,
     loadingMessages,
     busy,
+    creatingChat,
     ask,
     loadConversation,
     startConversation,
     removeConversation,
     refreshConversations,
+    prepareNewChat,
   };
 }

@@ -6,12 +6,25 @@ import { useEffect, useState } from "react";
 
 import { PageShell } from "@/components/page-shell";
 import { apiGet } from "@/lib/api";
+import { getPageCache, setPageCache } from "@/lib/page-cache";
 import type { DashboardSummary } from "@/lib/types";
 
-export default function DashboardPage() {
-  const [data, setData] = useState<DashboardSummary | null>(null);
+const CACHE_KEY = "dashboard-summary";
 
-  useEffect(() => { apiGet<DashboardSummary>("/dashboard/summary").then(setData).catch(() => setData(null)); }, []);
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardSummary | null>(() => getPageCache<DashboardSummary>(CACHE_KEY));
+  const [refreshing, setRefreshing] = useState(!getPageCache<DashboardSummary>(CACHE_KEY));
+
+  useEffect(() => {
+    setRefreshing(!getPageCache<DashboardSummary>(CACHE_KEY));
+    apiGet<DashboardSummary>("/dashboard/summary")
+      .then((next) => {
+        setPageCache(CACHE_KEY, next);
+        setData(next);
+      })
+      .catch(() => setData((current) => current))
+      .finally(() => setRefreshing(false));
+  }, []);
 
   const stats = [
     ["Trusted memory", data?.trusted_memories ?? "—", "bg-[var(--lime)]"],
@@ -21,7 +34,15 @@ export default function DashboardPage() {
   ];
 
   return (
-    <PageShell title="Organization brain" actions={<Link href="/dashboard/context" className="btn-primary"><Inbox size={16} /> Add context</Link>}>
+    <PageShell
+      title="Organization brain"
+      actions={
+        <>
+          {refreshing ? <span className="badge">Updating...</span> : null}
+          <Link href="/dashboard/context" className="btn-primary"><Inbox size={16} /> Add context</Link>
+        </>
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map(([label, value, color]) => (
           <div key={String(label)} className={`panel p-5 ${color}`}>

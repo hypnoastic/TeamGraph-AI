@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import type { BrainCitation } from "@/lib/types";
 import { useTypewriter } from "@/hooks/use-typewriter";
 import type { ChatMessage } from "@/hooks/use-brain-chats";
-import { CitationChip, renderAnswerWithCitations } from "@/components/brain/citation-chip";
+import { CitationChip } from "@/components/brain/citation-chip";
+import { MarkdownMessage } from "@/components/brain/markdown-message";
 import { ThinkingBubble } from "@/components/brain/thinking-bubble";
 
 type ChatThreadProps = {
@@ -15,11 +16,21 @@ type ChatThreadProps = {
   conversations?: Array<{ id: string; title: string }>;
   activeConversationId?: string | null;
   onSelectConversation?: (conversationId: string) => void;
-  onNewChat?: () => void;
+  onOpenNewChat?: () => void;
   onPrompt: (prompt: string) => void;
   onSelectCitation: (citation: BrainCitation, index: number) => void;
   selectedCitationIndex: number | null;
 };
+
+function ThreadSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map((item) => (
+        <div key={item} className={`animate-pulse border-2 border-black/10 bg-black/5 p-4 ${item % 2 ? "ml-auto w-2/3" : "w-4/5"}`} />
+      ))}
+    </div>
+  );
+}
 
 function AssistantMessage({
   message,
@@ -44,11 +55,15 @@ function AssistantMessage({
       <div className="mono mb-2 text-[10px] font-bold uppercase">
         TeamGraph · {message.answer?.mode || "error"}
       </div>
-      <p className={`whitespace-pre-wrap text-sm leading-6 ${message.error ? "font-bold text-red-700" : ""}`}>
-        {message.answer?.citations?.length
-          ? renderAnswerWithCitations(displayText, message.answer.citations, onSelectCitation)
-          : displayText}
-      </p>
+      {message.error ? (
+        <p className="font-bold text-red-700 text-sm leading-6">{displayText}</p>
+      ) : (
+        <MarkdownMessage
+          text={displayText}
+          citations={message.answer?.citations}
+          onSelectCitation={onSelectCitation}
+        />
+      )}
       {message.answer?.citations?.length ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {message.answer.citations.map((citation, citationIndex) => (
@@ -73,12 +88,14 @@ export function ChatThread({
   conversations = [],
   activeConversationId,
   onSelectConversation,
-  onNewChat,
+  onOpenNewChat,
   onPrompt,
   onSelectCitation,
   selectedCitationIndex,
 }: ChatThreadProps) {
   const prompts = ["What changed this week?", "Prepare a project handoff", "Find recent decisions"];
+  const showEmpty = !loading && !messages.length;
+  const showMessages = messages.length > 0;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -95,16 +112,16 @@ export function ChatThread({
               </option>
             ))}
           </select>
-          {onNewChat ? (
-            <button type="button" className="btn-secondary px-3 text-xs" onClick={onNewChat}>
+          {onOpenNewChat ? (
+            <button type="button" className="btn-secondary px-3 text-xs" onClick={onOpenNewChat}>
               New
             </button>
           ) : null}
         </div>
       ) : null}
-      <div className="flex-1 overflow-y-auto p-5">
-        {loading ? <div className="empty-state">Loading conversation...</div> : null}
-        {!loading && !messages.length ? (
+      <div className={`flex-1 overflow-y-auto p-5 ${loading && showMessages ? "opacity-80" : ""}`}>
+        {loading && !showMessages ? <ThreadSkeleton /> : null}
+        {showEmpty ? (
           <div className="flex h-full flex-col items-center justify-center text-center">
             <div className="border-2 border-black bg-[var(--purple)] p-4 shadow-[6px_6px_0_black]">
               <Brain size={34} />
@@ -125,7 +142,7 @@ export function ChatThread({
             </div>
           </div>
         ) : null}
-        {!loading && messages.length ? (
+        {showMessages ? (
           <div className="space-y-5">
             {messages.map((message) =>
               message.status === "thinking" ? (

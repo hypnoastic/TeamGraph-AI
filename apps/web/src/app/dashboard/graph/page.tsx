@@ -6,7 +6,7 @@ import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { useGraphLayout } from "@/hooks/use-graph-layout";
-import { apiGet } from "@/lib/api";
+import { apiGet, getCachedData } from "@/lib/api";
 import type { GraphVisualization, JsonObject } from "@/lib/types";
 import { useEdgesState, useNodesState } from "@xyflow/react";
 
@@ -143,7 +143,7 @@ export default function GraphPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selected, setSelected] = useState<Node | null>(null);
   const [timeline, setTimeline] = useState<GraphVisualization["timeline"]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCachedData<GraphVisualization>("/graph/visualization"));
   const [userId, setUserId] = useState<string | null>(null);
   const { hasSavedLayout, savedViewport, applySavedPositions, persistPositions, persistViewport } = useGraphLayout(userId);
 
@@ -159,7 +159,8 @@ export default function GraphPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    const cached = getCachedData<GraphVisualization>("/graph/visualization");
+    if (!cached) setLoading(true);
     apiGet<GraphVisualization>("/graph/visualization", true, true)
       .then((data) => {
         setNodes(applySavedPositions(graphNodes(data.nodes)));

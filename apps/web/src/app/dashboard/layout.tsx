@@ -25,7 +25,16 @@ const navItems = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem("teamgraph_user");
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as SessionUser;
+    } catch {
+      return null;
+    }
+  });
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [open, setOpen] = useState(false);
 
