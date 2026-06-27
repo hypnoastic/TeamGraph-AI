@@ -1,7 +1,7 @@
 # TeamGraph AI
 
-[![Project Health](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/project-health.yml/badge.svg)](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/project-health.yml)
-[![Build & Deploy](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/deploy.yml/badge.svg)](https://github.com/yashkumar/TeamGraph-AI/actions/workflows/deploy.yml)
+[![Project Health](https://github.com/hypnoastic/TeamGraph-AI/actions/workflows/project-health.yml/badge.svg)](https://github.com/hypnoastic/TeamGraph-AI/actions/workflows/project-health.yml)
+[![Build & Deploy](https://github.com/hypnoastic/TeamGraph-AI/actions/workflows/deploy.yml/badge.svg)](https://github.com/hypnoastic/TeamGraph-AI/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](packages/teamgraph-mcp/LICENSE)
 
 TeamGraph is a governed live organization brain. Graphiti provides temporal memory, Neo4j stores the knowledge graph, and TeamGraph adds Postgres-backed identity, permissions, approvals, API keys, and audit controls.
