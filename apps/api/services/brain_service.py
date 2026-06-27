@@ -6,7 +6,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from config import settings
+from postgres import SessionLocal
 from services.brain_chat_service import append_message
+from services.brain_source_service import enrich_citations_from_postgres
 from services.graphiti.service import graphiti_service
 from services.graphiti.schemas import SearchCitation, SearchFact
 from services.team_service import user_can_access_project
@@ -154,7 +156,19 @@ async def execute_brain_query(request: BrainQueryRequest, user: dict, db: Sessio
         user=user,
     )
 
-    citations = [Citation(**citation.model_dump()) for citation in search_result.citations]
+    raw_citations = [Citation(**citation.model_dump()) for citation in search_result.citations]
+
+    enrich_db = db
+    close_enrich_db = False
+    if enrich_db is None:
+        enrich_db = SessionLocal()
+        close_enrich_db = True
+    try:
+        citations = enrich_citations_from_postgres(raw_citations, user, enrich_db)
+    finally:
+        if close_enrich_db:
+            enrich_db.close()
+
     related_facts = [RelatedFact(**fact.model_dump()) for fact in search_result.related_facts[:10]]
     timeline = [
         TimelineEvent(

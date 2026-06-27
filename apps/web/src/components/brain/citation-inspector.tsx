@@ -31,7 +31,11 @@ export function CitationInspector({
 
   if (!citation) return null;
 
-  const showFallback = !loading && (!detail || fetchFailed);
+  const hasRef = Boolean(citation.context_id || citation.graphiti_episode_uuid);
+  const showFallback = !loading && !detail && (fetchFailed || !hasRef);
+  const fallbackMessage = fetchFailed && hasRef
+    ? "Could not load full source details from the index. Showing citation metadata from the brain response."
+    : "This citation has no linked source ID. Showing metadata from the brain response only.";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -96,7 +100,7 @@ export function CitationInspector({
         {showFallback ? (
           <div className="space-y-4 text-sm">
             <p className="border-2 border-black bg-[var(--yellow)] p-3 text-xs font-bold">
-              Full content is not indexed in Postgres yet. Showing citation metadata from the brain response.
+              {fallbackMessage}
             </p>
             {citation.summary ? (
               <section>

@@ -12,6 +12,33 @@ def _normalize_created_at(value: Any) -> str | None:
     return str(value)
 
 
+def _parse_episode_body_fields(episode_body: str | None) -> dict[str, str]:
+    if not episode_body:
+        return {}
+    fields: dict[str, str] = {}
+    for line in str(episode_body).split("\n"):
+        if not line.strip():
+            break
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        fields[key.strip()] = value.strip()
+    return fields
+
+
+def _episode_metadata_from_node(node: Any) -> dict[str, Any]:
+    metadata = getattr(node, "episode_metadata", None) or getattr(node, "attributes", {}) or {}
+    if not isinstance(metadata, dict):
+        metadata = dict(metadata) if metadata else {}
+
+    episode_body = getattr(node, "episode_body", None) or metadata.get("episode_body")
+    parsed = _parse_episode_body_fields(episode_body)
+    for key in ("context_id", "raw_context_id", "source_type", "project_name", "uploader_email"):
+        if parsed.get(key) and not metadata.get(key):
+            metadata[key] = parsed[key]
+    return metadata
+
+
 def normalize_search_results(results: Any, *, provider: str, mode: str) -> BrainSearchResult:
     nodes = getattr(results, "nodes", []) or []
     edges = getattr(results, "edges", []) or []
@@ -21,7 +48,7 @@ def normalize_search_results(results: Any, *, provider: str, mode: str) -> Brain
     context_parts: list[str] = []
 
     for node in nodes[:5]:
-        metadata = getattr(node, "episode_metadata", None) or getattr(node, "attributes", {}) or {}
+        metadata = _episode_metadata_from_node(node)
         title = getattr(node, "name", None) or metadata.get("title") or "Graphiti Memory"
         summary = getattr(node, "summary", None) or metadata.get("summary")
 

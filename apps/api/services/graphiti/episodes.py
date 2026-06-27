@@ -7,6 +7,8 @@ from .schemas import EpisodeMetadata
 def build_episode_body(title: str, content: str, metadata: EpisodeMetadata, summary: str | None = None) -> str:
     lines = [
         f"title: {title}",
+        f"context_id: {metadata.context_id or ''}",
+        f"raw_context_id: {metadata.raw_context_id}",
         f"summary: {summary or ''}",
         f"context_type: {metadata.context_type}",
         f"visibility: {metadata.visibility}",
