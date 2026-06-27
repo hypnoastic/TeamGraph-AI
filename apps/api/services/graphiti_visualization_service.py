@@ -27,16 +27,25 @@ LIMIT $limit
 def _node_id(node: Any) -> str | None:
     if node is None:
         return None
-    props = _node_props(node)
+    props = _graph_props(node)
     return props.get("uuid") or props.get("id") or props.get("name")
 
 
-def _node_props(node: Any) -> dict[str, Any]:
-    if node is None:
+def _graph_props(value: Any) -> dict[str, Any]:
+    if value is None:
         return {}
-    if isinstance(node, dict):
-        return node
-    return dict(node)
+    if isinstance(value, dict):
+        return value
+    items = getattr(value, "items", None)
+    if callable(items):
+        return dict(items())
+    properties = getattr(value, "_properties", None)
+    if isinstance(properties, dict):
+        return properties
+    try:
+        return dict(value)
+    except (TypeError, ValueError):
+        return {}
 
 
 def _node_label(node: Any) -> str:
@@ -96,7 +105,7 @@ def get_graphiti_visualization(
             kind = _node_label(node)
             if not include(kind):
                 continue
-            props = _node_props(node)
+            props = _graph_props(node)
             label = props.get("name") or props.get("title") or node_id
             if node_id not in nodes_by_id:
                 nodes_by_id[node_id] = {
@@ -129,7 +138,7 @@ def get_graphiti_visualization(
             source_id = _node_id(episode)
             target_id = _node_id(related)
             if source_id and target_id:
-                rel_props = _node_props(rel) if isinstance(rel, dict) else dict(rel)
+                rel_props = _graph_props(rel)
                 rel_type = getattr(rel, "type", None) or rel_props.get("type") or "RELATED"
                 rel_label = rel_props.get("fact") or rel_props.get("name") or rel_type
                 edge_id = f"{source_id}-{target_id}-{rel_type}"

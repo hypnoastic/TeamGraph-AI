@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from config import settings
 from database import neo4j_db
@@ -68,6 +69,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TeamGraph Live Brain API", lifespan=lifespan)
+
+# Trust X-Forwarded-* from nginx so trailing-slash redirects use the public HTTPS URL.
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 app.add_middleware(
     CORSMiddleware,
