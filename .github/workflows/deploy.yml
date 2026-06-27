@@ -73,4 +73,5 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             sudo docker compose -f docker-compose.prod.yml --env-file .env pull api web
             sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build --pull missing api web nginx
+            sudo docker compose -f docker-compose.prod.yml --env-file .env restart nginx
             sudo docker image prune -f --filter "until=72h" || true

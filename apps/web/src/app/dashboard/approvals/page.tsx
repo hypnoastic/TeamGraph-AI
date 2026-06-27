@@ -10,8 +10,8 @@ type ApprovalResponse = Pick<InboxItem, "raw" | "review_item">;
 
 export default function ApprovalsPage() {
   const [items, setItems] = useState<ApprovalResponse[]>([]);
-  const refresh = () => apiGet<ApprovalResponse[]>("/approvals/").then(setItems).catch(() => setItems([]));
-  useEffect(() => { apiGet<ApprovalResponse[]>("/approvals/").then(setItems).catch(() => setItems([])); }, []);
+  const refresh = () => apiGet<ApprovalResponse[]>("/approvals").then(setItems).catch(() => setItems([]));
+  useEffect(() => { apiGet<ApprovalResponse[]>("/approvals").then(setItems).catch(() => setItems([])); }, []);
 
   const decide = async (id: string, action: "approve" | "reject") => {
     await apiPost(`/approvals/${id}/${action}`, {});

@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from auth.demo_auth import get_current_user
@@ -21,6 +21,20 @@ class ProjectRequest(BaseModel):
     visibility: str = Field(default="org", pattern="^(org|private)$")
 
 
+class UpdateProjectRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    visibility: str | None = Field(default=None, pattern="^(org|private)$")
+
+
+def _project_payload(project: Project) -> dict:
+    return {"id": project.id, "name": project.name, "visibility": project.visibility}
+
+
+def _require_admin(user: dict) -> None:
+    if user["role"] != "admin" or not user.get("org_id"):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
+
 @router.get("")
 def list_projects(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if not user.get("org_id"):
@@ -29,10 +43,7 @@ def list_projects(user: dict = Depends(get_current_user), db: Session = Depends(
     if user["role"] != "admin":
         query = query.join(UserProjectAccess).where(UserProjectAccess.user_id == user["id"])
     projects = db.execute(query).scalars().all()
-    return [
-        {"id": project.id, "name": project.name, "visibility": project.visibility}
-        for project in projects
-    ]
+    return [_project_payload(project) for project in projects]
 
 
 @router.post("")
@@ -41,8 +52,7 @@ def create_project(
     user: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user["role"] != "admin" or not user.get("org_id"):
-        raise HTTPException(status_code=403, detail="Admin access required.")
+    _require_admin(user)
     existing = db.execute(
         select(Project).where(
             Project.organization_id == user["org_id"],
@@ -77,4 +87,64 @@ def create_project(
         )
     except Exception:
         pass
-    return {"id": project.id, "name": project.name, "visibility": project.visibility}
+    return _project_payload(project)
+
+
+@router.patch("/{project_id}")
+def update_project(
+    project_id: str,
+    request: UpdateProjectRequest,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_admin(user)
+    project = db.execute(
+        select(Project).where(Project.id == project_id, Project.organization_id == user["org_id"])
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    if request.name is not None:
+        name = request.name.strip()
+        duplicate = db.execute(
+            select(Project).where(
+                Project.organization_id == user["org_id"],
+                Project.name == name,
+                Project.id != project_id,
+            )
+        ).scalar_one_or_none()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="A project with that name already exists.")
+        project.name = name
+    if request.visibility is not None:
+        project.visibility = request.visibility
+
+    db.commit()
+    db.refresh(project)
+    return _project_payload(project)
+
+
+@router.delete("/{project_id}")
+def delete_project(
+    project_id: str,
+    user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_admin(user)
+    project = db.execute(
+        select(Project).where(Project.id == project_id, Project.organization_id == user["org_id"])
+    ).scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    db.execute(delete(UserProjectAccess).where(UserProjectAccess.project_id == project_id))
+    db.delete(project)
+    db.commit()
+    try:
+        neo4j_db.execute_query(
+            "MATCH (p:Project {id: $project_id}) DETACH DELETE p",
+            {"project_id": project_id},
+        )
+    except Exception:
+        pass
+    return {"status": "success"}

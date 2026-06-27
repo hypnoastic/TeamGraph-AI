@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, Brain, ChevronRight, Code2, Inbox, Key, LayoutDashboard, LogOut, Menu, Network, Plug, Settings, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, Brain, ChevronRight, Code2, FolderKanban, Inbox, Key, LayoutDashboard, LogOut, Menu, Network, Plug, Settings, ShieldCheck, Users, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { apiGet, apiPost } from "@/lib/api";
@@ -10,6 +10,7 @@ import type { HealthResponse, SessionUser } from "@/lib/types";
 
 const navItems = [
   { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
+  { name: "Projects", path: "/dashboard/projects", icon: FolderKanban },
   { name: "Brain Chat", path: "/dashboard/brain", icon: Brain },
   { name: "Graph", path: "/dashboard/graph", icon: Network },
   { name: "Context", path: "/dashboard/context", icon: Inbox },

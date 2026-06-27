@@ -38,7 +38,7 @@ class ApiKeyResponse(BaseModel):
     last_used_at: str | None = None
 
 
-@router.post("/", response_model=ApiKeyResponse)
+@router.post("", response_model=ApiKeyResponse)
 def create_api_key(
     request: CreateApiKeyRequest,
     user: dict = Depends(get_current_user),
@@ -81,7 +81,7 @@ def create_api_key(
     }
 
 
-@router.get("/", response_model=list[ApiKeyResponse])
+@router.get("", response_model=list[ApiKeyResponse])
 def list_api_keys(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     keys = db.execute(
         select(ApiKeyRecord).where(ApiKeyRecord.user_id == user["id"]).order_by(ApiKeyRecord.created_at.desc())

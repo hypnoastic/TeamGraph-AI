@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     neo4j_db.close()
 
 
-app = FastAPI(title="TeamGraph Live Brain API", lifespan=lifespan)
+app = FastAPI(title="TeamGraph Live Brain API", lifespan=lifespan, redirect_slashes=False)
 
 # Trust X-Forwarded-* from nginx so trailing-slash redirects use the public HTTPS URL.
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")

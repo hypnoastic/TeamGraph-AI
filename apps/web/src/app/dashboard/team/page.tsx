@@ -15,15 +15,15 @@ export default function TeamPage() {
   const [inviteUrl, setInviteUrl] = useState("");
 
   const refresh = () => {
-    apiGet<TeamMember[]>("/team/").then(setTeam).catch(() => setTeam([]));
-    apiGet<TeamInvitation[]>("/team/invitations/").then(setInvitations).catch(() => setInvitations([]));
+    apiGet<TeamMember[]>("/team").then(setTeam).catch(() => setTeam([]));
+    apiGet<TeamInvitation[]>("/team/invitations").then(setInvitations).catch(() => setInvitations([]));
   };
   
-  useEffect(() => { refresh(); apiGet<Project[]>("/projects/").then(setProjects).catch(() => setProjects([])); }, []);
+  useEffect(() => { refresh(); apiGet<Project[]>("/projects").then(setProjects).catch(() => setProjects([])); }, []);
 
   const invite = async (event: React.FormEvent) => {
     event.preventDefault();
-    const response = await apiPost<{ invite_url: string }>("/team/invitations/", { email, role, project_ids: projects.map((project) => project.id) });
+    const response = await apiPost<{ invite_url: string }>("/team/invitations", { email, role, project_ids: projects.map((project) => project.id) });
     setInviteUrl(response.invite_url);
     setEmail("");
     refresh();

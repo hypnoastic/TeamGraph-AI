@@ -13,11 +13,11 @@ export default function ApiKeysPage() {
   const [purpose, setPurpose] = useState("MCP agent");
   const [selected, setSelected] = useState(["context.read", "context.write"]);
   const [rawKey, setRawKey] = useState("");
-  const refresh = () => apiGet<ApiKeyRecord[]>("/api-keys/").then(setKeys).catch(() => setKeys([]));
-  useEffect(() => { apiGet<ApiKeyRecord[]>("/api-keys/").then(setKeys).catch(() => setKeys([])); }, []);
+  const refresh = () => apiGet<ApiKeyRecord[]>("/api-keys").then(setKeys).catch(() => setKeys([]));
+  useEffect(() => { apiGet<ApiKeyRecord[]>("/api-keys").then(setKeys).catch(() => setKeys([])); }, []);
 
   const create = async () => {
-    const response = await apiPost<ApiKeyRecord>("/api-keys/", { purpose, scopes: selected });
+    const response = await apiPost<ApiKeyRecord>("/api-keys", { purpose, scopes: selected });
     setRawKey(response.raw_key || "");
     await refresh();
   };

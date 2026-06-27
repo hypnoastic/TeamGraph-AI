@@ -16,7 +16,7 @@ export default function ContextInboxPage() {
   const refresh = () => apiGet<InboxItem[]>("/context/inbox").then(setItems).catch(() => setItems([]));
   useEffect(() => {
     refresh();
-    apiGet<Project[]>("/projects/").then((data) => {
+    apiGet<Project[]>("/projects").then((data) => {
       setProjects(data);
       if (data[0]) setForm((current) => ({ ...current, project: data[0].id }));
     }).catch(() => setProjects([]));
