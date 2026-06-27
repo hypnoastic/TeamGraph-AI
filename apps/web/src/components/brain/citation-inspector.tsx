@@ -34,8 +34,8 @@ export function CitationInspector({
   const showFallback = !loading && (!detail || fetchFailed);
 
   return (
-    <>
-      <div className="flex items-center justify-between border-b-2 border-black p-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between border-b-2 border-black p-4">
         <div>
           <div className="mono text-[10px] font-bold uppercase tracking-[.12em] text-[var(--muted)]">Source detail</div>
           <h2 className="mt-1 text-lg font-black leading-tight">{detail?.title || citation.title}</h2>
@@ -112,7 +112,7 @@ export function CitationInspector({
           </div>
         ) : null}
       </div>
-    </>
+    </div>
   );
 }
 

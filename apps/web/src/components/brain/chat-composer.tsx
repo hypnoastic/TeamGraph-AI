@@ -16,7 +16,7 @@ export function ChatComposer({ query, busy, onChange, onSubmit }: ChatComposerPr
         event.preventDefault();
         onSubmit(query);
       }}
-      className="border-t-2 border-black bg-white p-3"
+      className="shrink-0 border-t-2 border-black bg-white p-3"
     >
       <div className="flex gap-2 border-2 border-black bg-white p-2 shadow-[4px_4px_0_black]">
         <input

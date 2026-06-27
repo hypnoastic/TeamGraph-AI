@@ -100,7 +100,7 @@ export function ChatThread({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {conversations.length && onSelectConversation ? (
-        <div className="flex gap-2 border-b-2 border-black bg-[#f7f2ea] p-3 md:hidden">
+        <div className="flex shrink-0 gap-2 border-b-2 border-black bg-[#f7f2ea] p-3 md:hidden">
           <select
             className="input-field flex-1 py-2 text-xs"
             value={activeConversationId || ""}

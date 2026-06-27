@@ -10,13 +10,13 @@ type BrainChatLayoutProps = {
 
 export function BrainChatLayout({ sidebar, thread, inspector }: BrainChatLayoutProps) {
   return (
-    <div className="flex min-h-[calc(100vh-130px)] gap-0 overflow-hidden border-2 border-black bg-[var(--surface)] shadow-[6px_6px_0_black]">
-      <aside className="hidden w-[260px] shrink-0 border-r-2 border-black bg-[#f7f2ea] md:flex md:flex-col">
+    <div className="flex h-full min-h-0 gap-0 overflow-hidden border-2 border-black bg-[var(--surface)] shadow-[6px_6px_0_black]">
+      <aside className="hidden min-h-0 w-[260px] shrink-0 flex-col overflow-hidden border-r-2 border-black bg-[#f7f2ea] md:flex">
         {sidebar}
       </aside>
-      <section className="flex min-w-0 flex-1 flex-col">{thread}</section>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{thread}</section>
       {inspector ? (
-        <aside className="hidden w-[320px] shrink-0 border-l-2 border-black bg-white xl:flex xl:flex-col">
+        <aside className="hidden min-h-0 w-[320px] shrink-0 flex-col overflow-hidden border-l-2 border-black bg-white xl:flex">
           {inspector}
         </aside>
       ) : null}

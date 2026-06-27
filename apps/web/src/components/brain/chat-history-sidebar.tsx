@@ -21,8 +21,8 @@ export function ChatHistorySidebar({
   onDelete,
 }: ChatHistorySidebarProps) {
   return (
-    <>
-      <div className="border-b-2 border-black p-4">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="border-b-2 border-black p-4 shrink-0">
         <div className="mono text-[10px] font-bold uppercase tracking-[.12em] text-[var(--muted)]">Chats</div>
         <button type="button" onClick={onOpenNewChat} className="btn-primary mt-3 w-full text-xs">
           <MessageSquarePlus size={14} /> New chat
@@ -62,6 +62,6 @@ export function ChatHistorySidebar({
           );
         })}
       </div>
-    </>
+    </div>
   );
 }

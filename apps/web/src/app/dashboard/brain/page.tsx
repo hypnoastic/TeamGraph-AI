@@ -81,36 +81,37 @@ export default function BrainPage() {
 
   return (
     <>
-      <BrainChatLayout
-        sidebar={
-          <ChatHistorySidebar
-            conversations={conversations}
-            activeConversationId={activeConversationId}
-            loading={loadingConversations}
-            onSelect={loadConversation}
-            onOpenNewChat={handleOpenNewChat}
-            onDelete={removeConversation}
-          />
-        }
-        thread={
-          <>
-            <ChatThread
-              messages={messages}
-              loading={loadingMessages}
-              busy={busy}
+      <div className="flex h-[calc(100dvh-6rem)] min-h-0 flex-col overflow-hidden md:h-[calc(100dvh-7.5rem)]">
+        <BrainChatLayout
+          sidebar={
+            <ChatHistorySidebar
               conversations={conversations}
               activeConversationId={activeConversationId}
-              onSelectConversation={loadConversation}
+              loading={loadingConversations}
+              onSelect={loadConversation}
               onOpenNewChat={handleOpenNewChat}
-              onPrompt={handleAsk}
-              onSelectCitation={handleSelectCitation}
-              selectedCitationIndex={selectedCitationIndex}
+              onDelete={removeConversation}
             />
-            <ChatComposer query={query} busy={busy} onChange={setQuery} onSubmit={handleAsk} />
-          </>
-        }
-        inspector={
-          <CitationInspector
+          }
+          thread={
+            <>
+              <ChatThread
+                messages={messages}
+                loading={loadingMessages}
+                busy={busy}
+                conversations={conversations}
+                activeConversationId={activeConversationId}
+                onSelectConversation={loadConversation}
+                onOpenNewChat={handleOpenNewChat}
+                onPrompt={handleAsk}
+                onSelectCitation={handleSelectCitation}
+                selectedCitationIndex={selectedCitationIndex}
+              />
+              <ChatComposer query={query} busy={busy} onChange={setQuery} onSubmit={handleAsk} />
+            </>
+          }
+          inspector={
+            <CitationInspector
             open={Boolean(selectedCitation)}
             loading={sourceLoading}
             citation={selectedCitation}
@@ -122,9 +123,10 @@ export default function BrainPage() {
               setSourceDetail(null);
               setSourceError(false);
             }}
-          />
-        }
-      />
+            />
+          }
+        />
+      </div>
       <NewChatModal
         open={newChatOpen}
         busy={creatingChat}

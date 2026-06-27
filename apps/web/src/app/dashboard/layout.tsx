@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="badge">{user.role}</span>
         </header>
-        <main className="p-4 md:p-7">{children}</main>
+        <main className={`p-4 md:p-7 ${pathname === "/dashboard/brain" ? "overflow-hidden" : ""}`}>{children}</main>
       </div>
     </div>
   );
