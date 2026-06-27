@@ -7,7 +7,7 @@ import { PageShell } from "@/components/page-shell";
 import { apiGet } from "@/lib/api";
 import type { GraphVisualization, JsonObject } from "@/lib/types";
 
-const palettes: Record<string, string> = { organization: "#9B5DE5", project: "#45D7E8", user: "#FFD84D", context: "#B9F227", episode: "#FF6B5F" };
+const palettes: Record<string, string> = { organization: "#9B5DE5", project: "#45D7E8", user: "#FFD84D", context: "#B9F227", episode: "#FF6B5F", entity: "#7B68EE" };
 
 function graphNodes(input: GraphVisualization["nodes"]): Node[] {
   return input.map((node, index) => ({
@@ -42,13 +42,13 @@ export default function GraphPage() {
   const meta = (selected?.data.meta || {}) as JsonObject;
 
   return (
-    <PageShell title="Graph explorer" actions={<span className="badge badge-live">{nodes.length} nodes</span>}>
+    <PageShell title="Graph explorer" actions={<span className="badge badge-live">{nodes.length} Graphiti nodes</span>}>
       <div className="grid gap-6 xl:grid-cols-[1fr_310px]">
         <div className="panel h-[680px] overflow-hidden bg-[var(--surface)] relative">
           {loading ? (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[var(--surface)]">
               <div className="h-12 w-12 animate-spin rounded-full border-4 border-black border-t-[var(--cyan)]" />
-              <p className="mt-4 font-bold text-black">Loading Graph Data...</p>
+              <p className="mt-4 font-bold text-black">Loading Graphiti graph...</p>
             </div>
           ) : null}
           <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={(_, node) => setSelected(node)} fitView>

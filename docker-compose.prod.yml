@@ -45,7 +45,7 @@ services:
   web:
     image: ghcr.io/hypnoastic/teamgraph-web:latest
     environment:
-      NEXT_PUBLIC_API_BASE_URL: ${PUBLIC_BASE_URL}
+      # Client API base is baked at image build time (NEXT_PUBLIC_API_BASE_URL=/api).
       API_TARGET: http://api:8000
     depends_on:
       - api

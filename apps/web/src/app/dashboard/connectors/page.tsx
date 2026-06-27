@@ -3,6 +3,7 @@
 import { Plug, CheckCircle2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { ModalOverlay } from "@/components/modal-overlay";
 import { apiGet, apiPost, getCachedData, setCachedData } from "@/lib/api";
 import type { ConnectorRecord } from "@/lib/types";
 
@@ -232,10 +233,8 @@ export default function ConnectorsPage() {
         )}
       </div>
 
-      {/* Configuration Modal */}
-      {configModalProvider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-[var(--paper)] border-2 border-black p-6 shadow-[8px_8px_0_black] max-w-lg w-full max-h-[80vh] flex flex-col">
+      <ModalOverlay open={Boolean(configModalProvider)} onClose={() => setConfigModalProvider(null)}>
+          <div className="bg-[var(--paper)] border-2 border-black p-6 shadow-[8px_8px_0_black] w-full max-h-[80vh] flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-black capitalize">{configModalProvider} Configuration</h3>
               <button
@@ -297,8 +296,7 @@ export default function ConnectorsPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </ModalOverlay>
     </PageShell>
   );
 }
