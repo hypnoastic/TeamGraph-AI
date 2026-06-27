@@ -52,55 +52,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          command_timeout: 30m
+          command_timeout: 15m
           script: |
-            mkdir -p ~/teamgraph/deploy
-
-            # Write nginx.conf inline (HTTP only - no SSL cert dependency)
-            cat > ~/teamgraph/deploy/nginx.conf << 'NGINX_EOF'
-            events {}
-
-            http {
-              server {
-                listen 80;
-                server_name _;
-                client_max_body_size 20m;
-
-                location /auth/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /onboarding/organization { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /organizations/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /projects/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /dashboard/summary { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /api-keys/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /brain/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /context/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /approvals/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /graph/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /activity/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /team/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /integrations/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /settings/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /mcp/ { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-                location /health { proxy_pass http://api:8000; proxy_set_header Host $host; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-
-                location / {
-                  proxy_pass http://web:3000;
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
-                }
-              }
-            }
-            NGINX_EOF
-
-            echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}' > ~/teamgraph/google-credentials.json
-            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            set -euo pipefail
+            if [ ! -d ~/teamgraph/.git ]; then
+              rm -rf ~/teamgraph
+              git clone --depth 1 https://github.com/hypnoastic/TeamGraph-AI.git ~/teamgraph
+            fi
             cd ~/teamgraph
-            sudo docker compose -f docker-compose.prod.yml pull
-            sudo docker compose -f docker-compose.prod.yml up -d --force-recreate web api nginx
-            sudo docker system prune -af --volumes
+            git fetch origin master
+            git reset --hard origin/master
+            echo '${{ secrets.PROD_ENV }}' > .env
+            echo '${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}' > google-credentials.json
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            sudo docker compose -f docker-compose.prod.yml --env-file .env pull api web
+            sudo docker compose -f docker-compose.prod.yml --env-file .env up -d --no-build --pull missing api web nginx
+            sudo docker image prune -f --filter "until=72h" || true

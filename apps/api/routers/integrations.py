@@ -17,6 +17,7 @@ from utils.encryption import encrypt_token, decrypt_token
 from services.integrations.registry import get_provider
 from services.connectors.registry import list_connectors
 from services.integrations.github import get_installation_token
+from services.sync_service import schedule_immediate_sync
 import httpx
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -115,6 +116,8 @@ async def integration_callback(
         )
     ).scalar_one_or_none()
 
+    connection_id: str | None = None
+
     if existing:
         existing.status = "connected"
         existing.access_token_enc = encrypt_token(token_data.get("access_token"))
@@ -124,6 +127,8 @@ async def integration_callback(
         existing.metadata_json = json.dumps(identity.get("metadata", {}))
         existing.updated_at = datetime.datetime.utcnow()
         existing.connected_by_user_id = oauth_state.user_id
+        existing.last_synced_at = None
+        connection_id = existing.id
     else:
         new_conn = IntegrationConnection(
             id=f"conn_{uuid.uuid4().hex[:12]}",
@@ -136,13 +141,17 @@ async def integration_callback(
             display_name=identity.get("display_name"),
             metadata_json=json.dumps(identity.get("metadata", {})),
             connected_by_user_id=oauth_state.user_id,
-            last_synced_at=None
+            last_synced_at=None,
         )
         db.add(new_conn)
-    
+        connection_id = new_conn.id
+
     # Delete the used state
     db.delete(oauth_state)
     db.commit()
+
+    if connection_id:
+        schedule_immediate_sync(connection_id)
 
     frontend_redirect = f"{settings.frontend_origin}/dashboard/connectors"
     return RedirectResponse(url=frontend_redirect)
