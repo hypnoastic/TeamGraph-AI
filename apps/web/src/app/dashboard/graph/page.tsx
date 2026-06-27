@@ -5,6 +5,7 @@ import "@xyflow/react/dist/style.css";
 import { Maximize2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { useGraphLayout } from "@/hooks/use-graph-layout";
 import { apiGet } from "@/lib/api";
 import type { GraphVisualization, JsonObject } from "@/lib/types";
 import { useEdgesState, useNodesState } from "@xyflow/react";
@@ -57,6 +58,10 @@ function GraphCanvas({
   onNodeClick,
   onNodesChange,
   onEdgesChange,
+  hasSavedLayout,
+  savedViewport,
+  onNodeDragStop,
+  onMoveEnd,
 }: {
   nodes: Node[];
   edges: Edge[];
@@ -64,8 +69,12 @@ function GraphCanvas({
   onNodeClick: (node: Node) => void;
   onNodesChange: (changes: NodeChange<Node>[]) => void;
   onEdgesChange: (changes: EdgeChange<Edge>[]) => void;
+  hasSavedLayout: boolean;
+  savedViewport?: { x: number; y: number; zoom: number };
+  onNodeDragStop: (nodes: Node[]) => void;
+  onMoveEnd: (_: unknown, viewport: { x: number; y: number; zoom: number }) => void;
 }) {
-  const { fitView } = useReactFlow();
+  const { fitView, setViewport, getNodes } = useReactFlow();
 
   const fitGraph = useCallback(() => {
     fitView({ padding: 0.18, minZoom: 0.04, maxZoom: 1.2, duration: 350 });
@@ -73,10 +82,16 @@ function GraphCanvas({
 
   useEffect(() => {
     if (!loading && nodes.length > 0) {
-      const timer = window.setTimeout(fitGraph, 80);
-      return () => window.clearTimeout(timer);
+      if (savedViewport) {
+        setViewport(savedViewport, { duration: 0 });
+        return;
+      }
+      if (!hasSavedLayout) {
+        const timer = window.setTimeout(fitGraph, 80);
+        return () => window.clearTimeout(timer);
+      }
     }
-  }, [loading, nodes, fitGraph]);
+  }, [loading, nodes, fitGraph, hasSavedLayout, savedViewport, setViewport]);
 
   return (
     <>
@@ -92,9 +107,11 @@ function GraphCanvas({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={(_, node) => onNodeClick(node)}
+        onNodeDragStop={() => onNodeDragStop(getNodes())}
+        onMoveEnd={onMoveEnd}
         minZoom={0.04}
         maxZoom={2}
-        fitView
+        defaultViewport={savedViewport}
         style={{ width: "100%", height: "100%" }}
         proOptions={{ hideAttribution: true }}
       >
@@ -127,18 +144,31 @@ export default function GraphPage() {
   const [selected, setSelected] = useState<Node | null>(null);
   const [timeline, setTimeline] = useState<GraphVisualization["timeline"]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const { hasSavedLayout, savedViewport, applySavedPositions, persistPositions, persistViewport } = useGraphLayout(userId);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("teamgraph_user");
+    if (raw) {
+      try {
+        setUserId((JSON.parse(raw) as { id: string }).id);
+      } catch {
+        setUserId(null);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     apiGet<GraphVisualization>("/graph/visualization", true, true)
       .then((data) => {
-        setNodes(graphNodes(data.nodes));
+        setNodes(applySavedPositions(graphNodes(data.nodes)));
         setEdges(graphEdges(data.edges));
         setTimeline(data.timeline);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [setEdges, setNodes]);
+  }, [applySavedPositions, setEdges, setNodes]);
 
   const meta = (selected?.data.meta || {}) as JsonObject;
 
@@ -154,6 +184,10 @@ export default function GraphPage() {
               onNodeClick={setSelected}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
+              hasSavedLayout={hasSavedLayout}
+              savedViewport={savedViewport}
+              onNodeDragStop={persistPositions}
+              onMoveEnd={(_, viewport) => persistViewport(viewport)}
             />
           </ReactFlowProvider>
         </div>

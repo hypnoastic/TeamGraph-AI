@@ -47,12 +47,12 @@ def test_auth_organization_context_and_mcp(client):
     assert risky.status_code == 200, risky.text
     assert risky.json()["decision"] == "review"
 
-    approvals = client.get("/approvals/", headers=headers)
+    approvals = client.get("/approvals", headers=headers)
     assert approvals.status_code == 200, approvals.text
     assert len(approvals.json()) == 1
 
     key_response = client.post(
-        "/api-keys/",
+        "/api-keys",
         headers=headers,
         json={"purpose": "Test agent", "scopes": ["context.read", "context.write"]},
     )

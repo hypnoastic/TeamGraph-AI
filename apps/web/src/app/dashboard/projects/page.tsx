@@ -3,6 +3,7 @@
 import { FolderKanban, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { LoadingButton } from "@/components/loading-button";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import type { Project, SessionUser } from "@/lib/types";
 
@@ -11,6 +12,8 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [visibility, setVisibility] = useState("org");
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const refresh = () => apiGet<Project[]>("/projects").then(setProjects).catch(() => setProjects([]));
 
@@ -25,9 +28,14 @@ export default function ProjectsPage() {
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!name.trim()) return;
-    await apiPost<Project>("/projects", { name: name.trim(), visibility });
-    setName("");
-    await refresh();
+    setBusy(true);
+    try {
+      await apiPost<Project>("/projects", { name: name.trim(), visibility });
+      setName("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const updateVisibility = async (project: Project, next: string) => {
@@ -36,8 +44,13 @@ export default function ProjectsPage() {
   };
 
   const remove = async (projectId: string) => {
-    await apiDelete(`/projects/${projectId}`);
-    await refresh();
+    setDeletingId(projectId);
+    try {
+      await apiDelete(`/projects/${projectId}`);
+      await refresh();
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -61,9 +74,9 @@ export default function ProjectsPage() {
               <option value="org">Organization-wide</option>
               <option value="private">Private (assigned members only)</option>
             </select>
-            <button type="submit" className="btn-primary w-full">
-              <Plus size={15} /> Create project
-            </button>
+            <LoadingButton type="submit" busy={busy} busyLabel="Working..." label="Create project" className="btn-primary w-full">
+              <Plus size={15} />
+            </LoadingButton>
           </form>
         ) : (
           <section className="panel h-fit p-5 text-sm text-[var(--muted)]">
@@ -106,7 +119,7 @@ export default function ProjectsPage() {
                   </td>
                   {isAdmin && (
                     <td className="text-right">
-                      <button aria-label={`Delete ${project.name}`} onClick={() => remove(project.id)}>
+                      <button aria-label={`Delete ${project.name}`} disabled={deletingId !== null} onClick={() => remove(project.id)}>
                         <Trash2 size={16} />
                       </button>
                     </td>

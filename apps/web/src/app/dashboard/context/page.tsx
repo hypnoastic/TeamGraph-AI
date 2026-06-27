@@ -3,6 +3,7 @@
 import { Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { LoadingButton } from "@/components/loading-button";
 import { apiGet, apiPost } from "@/lib/api";
 import type { InboxItem, Project } from "@/lib/types";
 
@@ -59,7 +60,7 @@ export default function ContextInboxPage() {
             </select>
           </div>
           {notice && <div className="mono mt-3 text-xs font-bold">{notice}</div>}
-          <button disabled={busy} className="btn-primary mt-4 w-full"><Upload size={16} /> {busy ? "Checking..." : "Upload"}</button>
+          <LoadingButton type="submit" busy={busy} busyLabel="Working..." label="Upload" className="btn-primary mt-4 w-full"><Upload size={16} /></LoadingButton>
         </form>
         <section className="panel overflow-hidden">
           <div className="border-b-2 border-black p-4 font-black">Recent ingestion</div>

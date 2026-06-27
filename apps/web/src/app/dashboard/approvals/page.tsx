@@ -3,6 +3,7 @@
 import { Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { LoadingButton } from "@/components/loading-button";
 import { apiGet, apiPost } from "@/lib/api";
 import type { InboxItem } from "@/lib/types";
 
@@ -10,12 +11,18 @@ type ApprovalResponse = Pick<InboxItem, "raw" | "review_item">;
 
 export default function ApprovalsPage() {
   const [items, setItems] = useState<ApprovalResponse[]>([]);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const refresh = () => apiGet<ApprovalResponse[]>("/approvals").then(setItems).catch(() => setItems([]));
   useEffect(() => { apiGet<ApprovalResponse[]>("/approvals").then(setItems).catch(() => setItems([])); }, []);
 
   const decide = async (id: string, action: "approve" | "reject") => {
-    await apiPost(`/approvals/${id}/${action}`, {});
-    await refresh();
+    setBusyId(`${action}-${id}`);
+    try {
+      await apiPost(`/approvals/${id}/${action}`, {});
+      await refresh();
+    } finally {
+      setBusyId(null);
+    }
   };
 
   return (
@@ -29,8 +36,22 @@ export default function ApprovalsPage() {
             </div>
             <p className="my-4 border-l-4 border-black pl-4 text-sm">{item.raw.content}</p>
             <div className="flex justify-end gap-2">
-              <button onClick={() => decide(item.review_item!.id, "reject")} className="btn-danger"><X size={15} /> Reject</button>
-              <button onClick={() => decide(item.review_item!.id, "approve")} className="btn-primary bg-[var(--lime)]"><Check size={15} /> Approve</button>
+              <LoadingButton
+                onClick={() => decide(item.review_item!.id, "reject")}
+                busy={busyId === `reject-${item.review_item!.id}`}
+                busyLabel="Working..."
+                label="Reject"
+                className="btn-danger"
+                disabled={busyId !== null}
+              ><X size={15} /></LoadingButton>
+              <LoadingButton
+                onClick={() => decide(item.review_item!.id, "approve")}
+                busy={busyId === `approve-${item.review_item!.id}`}
+                busyLabel="Working..."
+                label="Approve"
+                className="btn-primary bg-[var(--lime)]"
+                disabled={busyId !== null}
+              ><Check size={15} /></LoadingButton>
             </div>
           </article>
         )) : <div className="empty-state m-4">Queue clear.</div>}

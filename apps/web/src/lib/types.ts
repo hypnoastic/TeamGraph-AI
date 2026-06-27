@@ -42,7 +42,26 @@ export type SettingsResponse = {
 
 export type BrainCitation = { context_id?: string | null; graphiti_episode_uuid?: string | null; title: string; summary?: string | null; source_type?: string | null; project_name?: string | null; uploader_email?: string | null; created_at?: string | null; score?: number | null };
 export type RelatedFact = { id: string; label: string; kind: string; summary?: string | null };
-export type BrainResponse = { answer: string; confidence: number; citations: BrainCitation[]; related_facts: RelatedFact[]; timeline: Array<{ event: string; context_id?: string | null }>; suggested_next_actions: string[]; mode: string; provider: string };
+export type BrainResponse = { answer: string; confidence: number; citations: BrainCitation[]; related_facts: RelatedFact[]; timeline: Array<{ event: string; context_id?: string | null }>; suggested_next_actions: string[]; mode: string; provider: string; conversation_id?: string | null };
+export type BrainSourceDetail = {
+  id: string;
+  context_id?: string | null;
+  graphiti_episode_uuid?: string | null;
+  title: string;
+  summary?: string | null;
+  content?: string | null;
+  source_type?: string | null;
+  context_type?: string | null;
+  project_name?: string | null;
+  uploader_email?: string | null;
+  uploader_name?: string | null;
+  created_at?: string | null;
+  approval_status?: string | null;
+  tags: string[];
+};
+export type BrainConversationSummary = { id: string; title: string; created_at: string; updated_at: string; message_count: number };
+export type BrainStoredMessage = { id: string; role: string; text: string; answer?: BrainResponse | null; created_at: string };
+export type BrainConversationDetail = { id: string; title: string; created_at: string; updated_at: string; messages: BrainStoredMessage[] };
 
 export type RawContext = { id: string; title: string; content: string; sourceType: string; contextType: string; projectRequested?: string | null; createdAt: string; approvalStatus: string };
 export type CuratedContext = { id: string; brainMode: string; graphitiEpisodeUuid?: string | null; summary?: string; projectName?: string | null };

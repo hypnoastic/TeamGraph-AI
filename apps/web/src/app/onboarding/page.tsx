@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiGet, apiPost } from "@/lib/api";
+import { LoadingButton } from "@/components/loading-button";
 import type { SessionUser } from "@/lib/types";
 
 export default function OnboardingPage() {
@@ -10,10 +11,12 @@ export default function OnboardingPage() {
   const [organization, setOrganization] = useState("");
   const [project, setProject] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    setBusy(true);
     try {
       await apiPost("/onboarding/organization", { organization_name: organization, project_name: project });
       const user = await apiGet<SessionUser>("/auth/me");
@@ -22,6 +25,8 @@ export default function OnboardingPage() {
     } catch (caught: unknown) {
       const message = caught && typeof caught === "object" && "message" in caught ? String(caught.message) : "Setup failed";
       setError(message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -35,7 +40,7 @@ export default function OnboardingPage() {
         <label className="mono mb-1 block text-xs font-bold uppercase">First project</label>
         <input className="input-field mb-5" value={project} onChange={(e) => setProject(e.target.value)} required minLength={2} />
         {error && <div className="mb-4 border-2 border-black bg-[var(--coral)] p-3 text-sm font-bold">{error}</div>}
-        <button className="btn-primary w-full" type="submit">Create workspace</button>
+        <LoadingButton type="submit" busy={busy} busyLabel="Working..." label="Create workspace" className="btn-primary w-full" />
       </form>
     </main>
   );

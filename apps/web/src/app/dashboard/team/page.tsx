@@ -3,6 +3,7 @@
 import { Copy, Trash2, UserPlus, Clock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { LoadingButton } from "@/components/loading-button";
 import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import type { Project, TeamMember, TeamInvitation } from "@/lib/types";
 
@@ -13,6 +14,7 @@ export default function TeamPage() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [inviteUrl, setInviteUrl] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const refresh = () => {
     apiGet<TeamMember[]>("/team").then(setTeam).catch(() => setTeam([]));
@@ -23,10 +25,15 @@ export default function TeamPage() {
 
   const invite = async (event: React.FormEvent) => {
     event.preventDefault();
-    const response = await apiPost<{ invite_url: string }>("/team/invitations", { email, role, project_ids: projects.map((project) => project.id) });
-    setInviteUrl(response.invite_url);
-    setEmail("");
-    refresh();
+    setBusy(true);
+    try {
+      const response = await apiPost<{ invite_url: string }>("/team/invitations", { email, role, project_ids: projects.map((project) => project.id) });
+      setInviteUrl(response.invite_url);
+      setEmail("");
+      refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   const remove = async (id: string) => { await apiDelete(`/team/${id}`); await refresh(); };
@@ -40,7 +47,7 @@ export default function TeamPage() {
           <option value="member">Member</option>
           <option value="admin">Admin</option>
         </select>
-        <button className="btn-primary"><UserPlus size={16} /> Invite</button>
+        <LoadingButton type="submit" busy={busy} busyLabel="Working..." label="Invite" className="btn-primary"><UserPlus size={16} /></LoadingButton>
       </form>
       {inviteUrl && <div className="mb-5 flex w-full items-center gap-2 border-2 border-black bg-[var(--lime)] p-3 text-left text-sm font-bold">Invitation email sent successfully!</div>}
       

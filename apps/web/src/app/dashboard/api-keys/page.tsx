@@ -3,6 +3,7 @@
 import { Copy, Key, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { PageShell } from "@/components/page-shell";
+import { LoadingButton } from "@/components/loading-button";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import type { ApiKeyRecord } from "@/lib/types";
 
@@ -13,13 +14,19 @@ export default function ApiKeysPage() {
   const [purpose, setPurpose] = useState("MCP agent");
   const [selected, setSelected] = useState(["context.read", "context.write"]);
   const [rawKey, setRawKey] = useState("");
+  const [busy, setBusy] = useState(false);
   const refresh = () => apiGet<ApiKeyRecord[]>("/api-keys").then(setKeys).catch(() => setKeys([]));
   useEffect(() => { apiGet<ApiKeyRecord[]>("/api-keys").then(setKeys).catch(() => setKeys([])); }, []);
 
   const create = async () => {
-    const response = await apiPost<ApiKeyRecord>("/api-keys", { purpose, scopes: selected });
-    setRawKey(response.raw_key || "");
-    await refresh();
+    setBusy(true);
+    try {
+      const response = await apiPost<ApiKeyRecord>("/api-keys", { purpose, scopes: selected });
+      setRawKey(response.raw_key || "");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -29,7 +36,7 @@ export default function ApiKeysPage() {
           <h2 className="mb-4 font-black">New agent key</h2>
           <input className="input-field" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
           <div className="my-4 flex flex-wrap gap-2">{scopes.map((scope) => <button key={scope} onClick={() => setSelected((current) => current.includes(scope) ? current.filter((item) => item !== scope) : [...current, scope])} className={`badge ${selected.includes(scope) ? "badge-live" : ""}`}>{scope}</button>)}</div>
-          <button onClick={create} className="btn-primary w-full"><Plus size={15} /> Create</button>
+          <LoadingButton onClick={create} busy={busy} busyLabel="Working..." label="Create" className="btn-primary w-full"><Plus size={15} /></LoadingButton>
           {rawKey && <button onClick={() => navigator.clipboard.writeText(rawKey)} className="mono mt-4 flex w-full items-center gap-2 break-all border-2 border-black bg-[var(--lime)] p-3 text-left text-xs"><Copy size={15} className="shrink-0" /> {rawKey}</button>}
         </section>
         <section className="panel overflow-x-auto">
